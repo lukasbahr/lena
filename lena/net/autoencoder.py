@@ -1,4 +1,4 @@
-from lnos.observer.lueneberger import LuenebergerObserver
+from lena.observer.lueneberger import LuenebergerObserver
 import torch
 from torch import nn
 

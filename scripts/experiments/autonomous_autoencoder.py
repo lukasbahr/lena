@@ -2,10 +2,9 @@ import sys
 sys.path.append(sys.path[0]+'/../..')
 import numpy as np
 import torch
-from lnos.net.train import trainAutonomousAutoencoder
-from lnos.net.train import trainAutoencoder
-from lnos.net.helperfnc import generateTrainingData
-from lnos.datasets.exampleSystems import createDefaultObserver
+from lena.net.train import trainAutonomousAutoencoder
+from lena.net.helperfnc import generateTrainingData
+from lena.datasets.exampleSystems import createDefaultObserver
 
 
 def getOptions():
@@ -26,11 +25,11 @@ def getOptions():
     options['simulationTime'] = 20
     options['simulationStep'] = 1e-2
 
-    options['system'] = 'van_der_pohl'
+    options['system'] = 'autonomous'
     options['isAutonomous'] = True
 
     # options['dataGen'] = 'pairs'
-    options['dataGen'] = 'trajectories'
+    options['dataGen'] = 'pairs'
     options['sampling'] = 'lhs'
     options['gridSize'] = np.arange(-1, 1, 0.1)
     options['lhs_limits'] = np.array([[-1., 1.], [-1., 1.]])

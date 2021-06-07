@@ -1,7 +1,5 @@
-from lnos.observer.lueneberger import LuenebergerObserver
-from scipy import signal
+from lena.observer.lueneberger import LuenebergerObserver
 import numpy as np
-import math
 import torch
 
 
@@ -16,11 +14,7 @@ def getAutonomousSystem():
     dim_x = 2
     dim_y = 1
 
-    # Eigenvalues for D
-    b, a = signal.bessel(3, 2*math.pi, 'low', analog=True, norm='phase')
-    eigen = np.roots(a)
-
-    return f, h, g, u, dim_x, dim_y, eigen
+    return f, h, g, u, dim_x, dim_y
 
 
 def getVanDerPohlSystem():
@@ -38,18 +32,14 @@ def getVanDerPohlSystem():
     dim_x = 2
     dim_y = 1
 
-    # Eigenvalues for D
-    b, a = signal.bessel(3, 2*math.pi, 'low', analog=True, norm='phase')
-    eigen = np.roots(a)
-
-    return f, h, g, u, dim_x, dim_y, eigen
+    return f, h, g, u, dim_x, dim_y
 
 
 def createDefaultObserver(options):
     if options['system'] == 'autonomous':
-        f, h, g, u, dim_x, dim_y, eigen = getAutonomousSystem()
+        f, h, g, u, dim_x, dim_y = getAutonomousSystem()
     elif options['system'] == 'van_der_pohl':
-        f, h, g, u, dim_x, dim_y, eigen = getVanDerPohlSystem()
+        f, h, g, u, dim_x, dim_y = getVanDerPohlSystem()
     else:
         print("Can't find system {}. Available options ['autonomous', 'van_der_pohl']".format(options['system']))
 
@@ -57,7 +47,6 @@ def createDefaultObserver(options):
     observer = LuenebergerObserver(dim_x, dim_y, f, g, h, u)
 
     # Set system dynamics
-    observer.D = observer.tensorDFromEigen(eigen)
     observer.F = torch.Tensor([[1.0], [1.0], [1.0]])
 
     return observer
