@@ -71,35 +71,37 @@ def generateTrainingData(observer, options):
         data = torch.transpose(data_fw[-1, :, :], 0, 1).float()
 
     elif options['dataGen'] == 'trajectories':
+        # Eigenvalues for D
+        w_c = random.uniform(0.5, 2.5) * math.pi
+        b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
+        eigen = np.roots(a)
+
+        # Place eigenvalue
+        observer.D = observer.tensorDFromEigen(eigen)
+
+        # Advance k/min(lambda) in time
+        k = 20
+        t_c = k/min(abs(observer.eigenD.real))
+        tsim = (0, t_c)
+
         # Create dataframe
         y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims), dtype=torch.double)
 
-        # Simulate forward in time
-        for i in range(nsims):
-            # Eigenvalues for D
-            w_c = random.uniform(0.5, 2.5) * math.pi
-            b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
-            eigen = np.roots(a)
+        y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
+        tq, data = observer.simulateLueneberger(y_0, tsim, dt)
 
-            # Place eigenvalue
-            observer.D = observer.tensorDFromEigen(eigen)
-
-            tsim = (0, t_c)
-            y_0[:observer.dim_x, :] = mesh[i].unsqueeze(1)
-            tq, data_fw = observer.simulateLueneberger(y_0, tsim, -dt)
-
-
-            data = torch.transpose(data_fw, 0, 1).float()
 
         # Bin initial data
         k=3
-        t_c = 3/min(abs(linalg.eig(observer.D)[0].real))
-        idx = max(np.argwhere(tq < t_c))
-    
+        t = 3/min(abs(linalg.eig(observer.D)[0].real))
+        idx = max(np.argwhere(tq < t))
+
         # Data contains the trajectories for every initial value
         # Shape [dim_z, tsim-initial_data, number_simulations]
-        data = data[:,idx[-1]-1:,:]
-        tq = tq[idx[-1]-1:]
+        data = data[idx[-1]-1:,:,:]
 
+        w_c = torch.tensor([w_c]).unsqueeze(1).repeat(data.shape[0], 1, nsims)
+
+        data = torch.cat((w_c, data),dim=1)
 
     return data

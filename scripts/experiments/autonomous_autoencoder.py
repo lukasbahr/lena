@@ -29,11 +29,11 @@ def getOptions():
     options['isAutonomous'] = True
 
     # options['dataGen'] = 'pairs'
-    options['dataGen'] = 'pairs'
+    options['dataGen'] = 'trajectories'
     options['sampling'] = 'lhs'
     options['gridSize'] = np.arange(-1, 1, 0.1)
     options['lhs_limits'] = np.array([[-1., 1.], [-1., 1.]])
-    options['lhs_samples'] = 200
+    options['lhs_samples'] = 50
 
     return options
 
