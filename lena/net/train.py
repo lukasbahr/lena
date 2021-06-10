@@ -1,4 +1,3 @@
-
 from lena.net.autoencoder import Autoencoder
 import torch
 import torch.nn as nn
@@ -20,11 +19,11 @@ def trainAutonomousAutoencoder(data, observer, options):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Make use of tensorboard
-    if options['isTensorboard']:
+    if options['is_tensorboard']:
         writer = SummaryWriter()
 
     # Create trainloader
-    trainloader = utils.data.DataLoader(data, batch_size=options['batchSize'],
+    trainloader = utils.data.DataLoader(data, batch_size=options['batch_size'],
                                         shuffle=True, num_workers=2, drop_last=True)
 
     # Train autoencoder
@@ -48,7 +47,7 @@ def trainAutonomousAutoencoder(data, observer, options):
             loss, loss1, loss2 = model.loss(inputs, x_hat, z)
 
             # Write loss to tensorboard
-            if options['isTensorboard']:
+            if options['is_tensorboard']:
                 writer.add_scalars("Loss/train", {
                     'loss': loss,
                     'loss1': loss1,
@@ -71,7 +70,7 @@ def trainAutonomousAutoencoder(data, observer, options):
         print('====> Epoch: {} done!'.format(epoch + 1))
 
         # Validate prediction after each epoch in tensorboard
-        if options['isTensorboard']:
+        if options['is_tensorboard']:
 
             randInt = torch.randint(0, data.shape[0], (1,))[0]
 
@@ -104,7 +103,7 @@ def trainAutonomousAutoencoder(data, observer, options):
     print('Finished Training')
 
     # Close tensorboard writer
-    if options['isTensorboard']:
+    if options['is_tensorboard']:
         writer.close()
 
     return model

@@ -13,28 +13,29 @@ def normalize(self, data):
     return (data-np.min(data))/(np.max(data) - np.min(data))
 
 
-def generateTrainingData(observer, options):
+def generateTrainingData(observer, params):
     """
     Generate training samples (x,z) by simulating backward in time
     and after forward in time.
     """
 
     # Sample either a uniformly grid or use latin hypercube sampling
-    if options['sampling'] == 'uniform':
-        mesh = np.array(np.meshgrid(options['gridSize'], options['gridSize'])).T.reshape(-1, 2)
+    if params['sampling'] == 'uniform':
+        mesh = np.array(np.meshgrid(params['gridSize'], options['gridSize'])).T.reshape(-1, 2)
         mesh = torch.tensor(mesh)
-    elif options['sampling'] == 'lhs':
-        sampling = LHS(xlimits=options['lhs_limits'])
-        mesh = torch.tensor(sampling(options['lhs_samples']))
+    elif params['sampling'] == 'lhs':
+        limits = np.array([[params['lhs_limits'],params['lhs_limits']]])
+        sampling = LHS(xlimits=limits)
+        mesh = torch.tensor(sampling(params['lhs_samples']))
 
     nsims = mesh.shape[0]
 
     # Set simulation step width
-    dt = options['simulationStep']
+    dt = params['simulation_step']
 
     # Generate either pairs of (x_i, z_i) values by simulating back and then forward in time
     # or generate trajectories for every initial value (x_1_i, x_2_i, z_0)
-    if options['dataGen'] == 'pairs':
+    if params['type'] == 'pairs':
 
         # Create dataframes
         y_0 = torch.zeros((observer.dim_x + observer.dim_z, 1), dtype=torch.double)
@@ -69,7 +70,7 @@ def generateTrainingData(observer, options):
             # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
             data[i, :] = torch.cat((torch.tensor([w_c]).unsqueeze(1), data_fw[-1, :, :])).squeeze()
 
-    elif options['dataGen'] == 'trajectories':
+    elif params['dataGen'] == 'trajectories':
         # Eigenvalues for D
         w_c = random.uniform(0.5, 2.5) * math.pi
         b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')

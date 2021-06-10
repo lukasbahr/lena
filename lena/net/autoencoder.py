@@ -6,23 +6,23 @@ import numpy as np
 
 
 class Autoencoder(nn.Module):
-    def __init__(self, observer: LuenebergerObserver, options, device):
+    def __init__(self, observer: LuenebergerObserver, params, device):
         super(Autoencoder, self).__init__()
         self.observer = observer
-        self.options = options
+        self.params = params
         self.device = device
 
-        numHL = options['numHiddenLayers']
-        sizeHL = options['sizeHiddenLayer']
+        numHL = params['num_hlayers']
+        sizeHL = params['size_hlayer']
 
-        if options['activation'] == "relu":
+        if params['activation'] == "relu":
             self.act = nn.ReLU()
-        elif options['activation'] == "tanh":
+        elif params['activation'] == "tanh":
             self.act = nn.Tanh()
         else:
             print(
-                "Activation function {} not found. Available options: ['relu', 'tanh'].".format(
-                    options['activation']))
+                "Activation function {} not found. Available params: ['relu', 'tanh'].".format(
+                    params['activation']))
 
         # Encoder architecture
         self.encoderLayers = nn.ModuleList()
@@ -56,17 +56,17 @@ class Autoencoder(nn.Module):
 
         mse = nn.MSELoss()
 
-        loss1 = self.options['reconLambda'] * mse(y, y_pred)
+        loss1 = self.params['recon_lambda'] * mse(y, y_pred)
 
         # Compute gradients of T_u with respect to inputs
         dTdy = torch.autograd.functional.jacobian(self.encoder, y)
-        dTdy = dTdy[dTdy != 0].reshape((self.options['batchSize'], self.observer.dim_z+1, self.observer.dim_x+1))
+        dTdy = dTdy[dTdy != 0].reshape((self.params['batch_size'], self.observer.dim_z+1, self.observer.dim_x+1))
         dTdx = dTdy[:, 1:, 1:]
 
-        lhs = torch.zeros((self.observer.dim_z, self.options['batchSize']))
-        rhs = torch.zeros((self.observer.dim_z, self.options['batchSize']))
+        lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
+        rhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
 
-        for i in range(self.options['batchSize']):
+        for i in range(self.params['batch_size']):
             b, a = signal.bessel(3, w_c[i], 'low', analog=True, norm='phase')
             eigen = np.roots(a)
 

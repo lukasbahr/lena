@@ -37,13 +37,13 @@ def getVanDerPohlSystem():
     return f, h, g, u, e, dim_x, dim_y
 
 
-def createDefaultObserver(options):
-    if options['system'] == 'autonomous':
+def createDefaultObserver(params):
+    if params['name'] == 'autonomous':
         f, h, g, u, e, dim_x, dim_y = getAutonomousSystem()
-    elif options['system'] == 'van_der_pohl':
+    elif params['name'] == 'van_der_pohl':
         f, h, g, u, e, dim_x, dim_y = getVanDerPohlSystem()
     else:
-        print("Can't find system {}. Available options ['autonomous', 'van_der_pohl']".format(options['system']))
+        print("Can't find system {}. Available options ['autonomous', 'van_der_pohl']".format(params['type']))
 
     # Initiate observer with system dimensions
     observer = LuenebergerObserver(dim_x, dim_y, f, g, h, u, e)
