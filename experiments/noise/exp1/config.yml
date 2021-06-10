@@ -1,0 +1,16 @@
+# Experiment settings
+
+- model:
+    name: Martin D'vloper
+    job: Developer
+    skills:
+      - python
+      - perl
+      - pascal
+- observer:
+    name: Tabitha Bitumen
+    job: Developer
+    skills:
+      - lisp
+      - fortran
+      - erlang

@@ -5,6 +5,7 @@ import torch
 from lena.net.train import trainAutonomousAutoencoder
 from lena.net.helperfnc import generateTrainingData
 from lena.datasets.exampleSystems import createDefaultObserver
+from lena.tools.configlib import config as params
 
 
 def getOptions():
@@ -13,13 +14,13 @@ def getOptions():
     """
     options = {}
 
-    options['batchSize'] = 2
+    options['batchSize'] = 3
     options['epochs'] = 100
     options['numHiddenLayers'] = 5
     options['sizeHiddenLayer'] = 30
     options['activation'] = 'tanh'
     options['reconLambda'] = .1
-    options['isTensorboard'] = True
+    options['isTensorboard'] = False
     options['shuffle'] = False
 
     options['simulationTime'] = 20
@@ -29,11 +30,11 @@ def getOptions():
     options['isAutonomous'] = True
 
     # options['dataGen'] = 'pairs'
-    options['dataGen'] = 'trajectories'
+    options['dataGen'] = 'pairs'
     options['sampling'] = 'lhs'
-    options['gridSize'] = np.arange(-1, 1, 0.1)
+    options['gridSize'] = np.arange(-1, 1, 0.5)
     options['lhs_limits'] = np.array([[-1., 1.], [-1., 1.]])
-    options['lhs_samples'] = 50
+    options['lhs_samples'] = 2
 
     return options
 
@@ -44,5 +45,4 @@ if __name__ == "__main__":
     observer = createDefaultObserver(options)
     data = generateTrainingData(observer, options)
     trainAutonomousAutoencoder(data, observer, options)
-    # trainAutoencoder(data, observer, options)
     

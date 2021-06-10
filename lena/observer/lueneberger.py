@@ -5,7 +5,7 @@ import torch
 
 
 class LuenebergerObserver():
-    def __init__(self, dim_x: int, dim_y: int, f: callable, g: callable, h: callable, u: callable):
+    def __init__(self, dim_x: int, dim_y: int, f: callable, g: callable, h: callable, u: callable, e: callable):
         """
         Constructor for setting the dynamics of the Luenberger Observer. 
         Also constructs placeholder for D and F matrices.
@@ -17,6 +17,7 @@ class LuenebergerObserver():
             g -- callable function for control input
             h -- callable function for measurement 
             u -- callable function for input
+            e -- callable function for noise
 
         Returns:
             None
@@ -29,6 +30,7 @@ class LuenebergerObserver():
         self.g = g
         self.h = h
         self.u = u
+        self.e = e
 
         self.F = torch.zeros((self.dim_z, 1))
         self.eigenD = torch.zeros((self.dim_z, 1))
@@ -54,7 +56,7 @@ class LuenebergerObserver():
             eigenCell = self.eigenCellFromEigen(eig_complex, eig_real)
             D = linalg.block_diag(*eigenCell[:])
 
-            return torch.tensor(D, dtype=torch.float32)
+            return torch.from_numpy(D)
 
     @staticmethod
     def eigenCellFromEigen(eig_complex: torch.tensor, eig_real: torch.tensor) -> []:
@@ -103,11 +105,10 @@ class LuenebergerObserver():
         """
 
         def dydt(t, y):
-            y = y.float()
             x = y[0:self.dim_x]
             z = y[self.dim_x:len(y)]
             x_dot = self.f(x) + self.g(x) * self.u(t)
-            z_dot = torch.matmul(self.D, z)+self.F*self.h(x)
+            z_dot = torch.matmul(self.D, z)+self.F*self.h(x)+self.F*self.e(t)
             return torch.cat((torch.tensor(x_dot), z_dot))
 
         # Output timestemps of solver

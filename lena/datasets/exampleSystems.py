@@ -9,12 +9,13 @@ def getAutonomousSystem():
     def h(x): return torch.reshape(x[0, :], (1, -1))
     def g(x): return torch.zeros(x.shape[0], x.shape[1])
     def u(x): return 0
+    def e(t): return 0
 
     # System dimension
     dim_x = 2
     dim_y = 1
 
-    return f, h, g, u, dim_x, dim_y
+    return f, h, g, u, e, dim_x, dim_y
 
 
 def getVanDerPohlSystem():
@@ -27,24 +28,25 @@ def getVanDerPohlSystem():
         x[1, :]), (1, -1)), torch.reshape(torch.ones_like(x[0, :]), (1, -1))))
 
     def u(t): return 10e-3 + 9.99 * 10e-5*t
+    def e(t): return 0
 
     # System dimension
     dim_x = 2
     dim_y = 1
 
-    return f, h, g, u, dim_x, dim_y
+    return f, h, g, u, e, dim_x, dim_y
 
 
 def createDefaultObserver(options):
     if options['system'] == 'autonomous':
-        f, h, g, u, dim_x, dim_y = getAutonomousSystem()
+        f, h, g, u, e, dim_x, dim_y = getAutonomousSystem()
     elif options['system'] == 'van_der_pohl':
-        f, h, g, u, dim_x, dim_y = getVanDerPohlSystem()
+        f, h, g, u, e, dim_x, dim_y = getVanDerPohlSystem()
     else:
         print("Can't find system {}. Available options ['autonomous', 'van_der_pohl']".format(options['system']))
 
     # Initiate observer with system dimensions
-    observer = LuenebergerObserver(dim_x, dim_y, f, g, h, u)
+    observer = LuenebergerObserver(dim_x, dim_y, f, g, h, u, e)
 
     # Set system dynamics
     observer.F = torch.Tensor([[1.0], [1.0], [1.0]])
