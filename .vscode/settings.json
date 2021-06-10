@@ -1,8 +1,0 @@
-{
-    "python.pythonPath": "/usr/local/Caskroom/miniconda/base/envs/cas/bin/python",
-    "python.formatting.autopep8Args": [
-        "--max-line-length", "120", "--experimental"
-    ],
-    "files.eol": "\n",
-    "jupyter.jupyterServerType": "local"
-}
