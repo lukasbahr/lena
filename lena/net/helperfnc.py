@@ -2,8 +2,12 @@ import numpy as np
 import torch
 import random
 import math
+import dill as pickle
 from scipy import linalg, signal
 from smt.sampling_methods import LHS
+import matplotlib.pyplot as plt
+
+import lena.util.plot as plot
 
 
 def normalize(self, data):
@@ -13,21 +17,26 @@ def normalize(self, data):
     return (data-np.min(data))/(np.max(data) - np.min(data))
 
 
+def generateMesh(params):
+    # Sample either a uniformly grid or use latin hypercube sampling
+    if params['sampling'] == 'uniform':
+        mesh = np.array(np.meshgrid(params['gridSize'], options['gridSize'])).T.reshape(-1, 2)
+        mesh = torch.tensor(mesh)
+    elif params['sampling'] == 'lhs':
+        limits = np.array([params['lhs_limits'], params['lhs_limits']])
+        sampling = LHS(xlimits=limits)
+        mesh = torch.tensor(sampling(params['lhs_samples']))
+
+    return mesh
+
+
 def generateTrainingData(observer, params):
     """
     Generate training samples (x,z) by simulating backward in time
     and after forward in time.
     """
 
-    # Sample either a uniformly grid or use latin hypercube sampling
-    if params['sampling'] == 'uniform':
-        mesh = np.array(np.meshgrid(params['gridSize'], options['gridSize'])).T.reshape(-1, 2)
-        mesh = torch.tensor(mesh)
-    elif params['sampling'] == 'lhs':
-        limits = np.array([[params['lhs_limits'],params['lhs_limits']]])
-        sampling = LHS(xlimits=limits)
-        mesh = torch.tensor(sampling(params['lhs_samples']))
-
+    mesh = generateMesh(params)
     nsims = mesh.shape[0]
 
     # Set simulation step width
@@ -38,9 +47,9 @@ def generateTrainingData(observer, params):
     if params['type'] == 'pairs':
 
         # Create dataframes
-        y_0 = torch.zeros((observer.dim_x + observer.dim_z, 1), dtype=torch.double)
-        y_1 = torch.zeros((observer.dim_x + observer.dim_z, 1), dtype=torch.double)
-        data = torch.zeros((nsims, observer.dim_x + observer.dim_z + 1), dtype=torch.double)
+        y_0 = torch.zeros((observer.dim_x + observer.dim_z, 1))
+        y_1 = torch.zeros((observer.dim_x + observer.dim_z, 1))
+        data = torch.zeros((nsims, observer.dim_x + observer.dim_z + 1))
 
         for i in range(nsims):
             # Eigenvalues for D
@@ -103,4 +112,31 @@ def generateTrainingData(observer, params):
 
         data = torch.cat((w_c, data), dim=1)
 
-    return data
+    return data.float()
+
+
+def processModel(data, observer, model, params):
+
+    path = params['path']
+
+    torch.save(model.state_dict(), path+"/model.pt")
+
+    mesh = generateMesh(params['data'])
+
+    z, x_hat = model(data[:, :observer.dim_x+1])
+    x_hat = x_hat[:, 1:].detach().numpy()
+
+    np.savetxt(path+"/data.csv", data, delimiter=",")
+    np.savetxt(path+"/x_hat.csv", x_hat, delimiter=",")
+    np.savetxt(path+"/z_hat.csv", z, delimiter=",")
+
+    with open(path+"/observer.pickle", "wb") as f:
+        pickle.dump(observer, f)
+
+    plot.plotLogError2D(mesh, x_hat, mesh, params)
+
+    tq, w_true = observer.simulateLueneberger(data[:,1:] , (0,50), params['data']['simulation_step'])
+    tq, x = observer.simulateLueneberger(data[:,1:] , (0,50), params['data']['simulation_step'])
+
+    plot.plotSimulation2D()
+

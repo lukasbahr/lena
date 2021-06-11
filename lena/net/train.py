@@ -6,7 +6,7 @@ import torch.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
-def trainAutonomousAutoencoder(data, observer, options):
+def train(data, observer, options):
 
     # Make torch use the GPU
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -76,16 +76,16 @@ def trainAutonomousAutoencoder(data, observer, options):
 
             # Predict for a random datapoint
             with torch.no_grad():
-                inputs = data[randInt, :observer.dim_x].to(device)
-                z, x_hat = model(inputs)
+                inputs = data[randInt, :observer.dim_x+1].to(device)
+                z, x_hat = model(inputs.float())
 
             # Simulation parameters
-            tsim = (0, 50)
+            tsim = (0, 40)
             dt = 1e-2
 
             # Set inital simulation value for prediction and truth
-            w_0_pred = torch.cat((x_hat.to('cpu'), z.to('cpu'))).reshape(5, 1)
-            w_0_truth = data[randInt].reshape(5, 1)
+            w_0_pred = torch.cat((x_hat[:observer.dim_x].to('cpu'), torch.tensor([0.,0.,0.]))).reshape(5, 1)
+            w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.tensor([0.,0.,0.]))).reshape(5, 1)
 
             # Simulate for initial values
             tq, w_pred = observer.simulateLueneberger(w_0_pred, tsim, dt)

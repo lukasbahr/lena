@@ -56,7 +56,7 @@ class LuenebergerObserver():
             eigenCell = self.eigenCellFromEigen(eig_complex, eig_real)
             D = linalg.block_diag(*eigenCell[:])
 
-            return torch.from_numpy(D)
+            return torch.from_numpy(D).float()
 
     @staticmethod
     def eigenCellFromEigen(eig_complex: torch.tensor, eig_real: torch.tensor) -> []:

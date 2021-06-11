@@ -13,7 +13,7 @@ class Autoencoder(nn.Module):
         self.device = device
 
         numHL = params['num_hlayers']
-        sizeHL = params['size_hlayer']
+        sizeHL = params['size_hlayers']
 
         if params['activation'] == "relu":
             self.act = nn.ReLU()
@@ -74,7 +74,7 @@ class Autoencoder(nn.Module):
             D = self.observer.tensorDFromEigen(eigen).to(self.device)
 
             lhs[:, i] = torch.matmul(dTdx[i], self.observer.f(x.T).T[i]).T
-            rhs[:, i] = (torch.matmul(D, z.T[i]).reshape(-1, 1) + torch.matmul(self.observer.F.to(self.device),
+            rhs[:, i] = (torch.matmul(D, z[i].T).reshape(-1, 1) + torch.matmul(self.observer.F.to(self.device),
                          self.observer.h(x[i].reshape(-1, 1))).to(self.device)).squeeze()
 
         loss2 = mse(lhs.to(self.device), rhs)
