@@ -5,7 +5,7 @@ import torch
 
 
 class LuenebergerObserver():
-    def __init__(self, dim_x: int, dim_y: int, f: callable, g: callable, h: callable, u: callable, e: callable):
+    def __init__(self, dim_x: int, dim_y: int, optionalDim=0):
         """
         Constructor for setting the dynamics of the Luenberger Observer. 
         Also constructs placeholder for D and F matrices.
@@ -13,28 +13,23 @@ class LuenebergerObserver():
         Arguments:
             dim_x -- dimension of states
             dim_y -- dimension of inputs
-            f -- callable function for system dynamics
-            g -- callable function for control input
-            h -- callable function for measurement 
-            u -- callable function for input
-            e -- callable function for noise
-
+            optionalDim -- additional integer for dim_x and dim_z
         Returns:
             None
         """
-        self.dim_x = dim_x
+        self.dim_x = dim_x + optionalDim
         self.dim_y = dim_y
-        self.dim_z = self.dim_y * (self.dim_x + 1)
-
-        self.f = f
-        self.g = g
-        self.h = h
-        self.u = u
-        self.e = e
+        self.dim_z = self.dim_y * (self.dim_x + 1) + optionalDim 
 
         self.F = torch.zeros((self.dim_z, 1))
         self.eigenD = torch.zeros((self.dim_z, 1))
         self.D = torch.zeros((self.dim_z, self.dim_z))
+
+    def f(x): return 0
+    def g(x): return 0
+    def h(x): return 0
+    def u(x): return 0
+    def e(x): return 0
 
     def tensorDFromEigen(self, eigen: torch.tensor) -> torch.tensor:
         """
