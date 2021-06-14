@@ -64,7 +64,7 @@ class Autoencoder(nn.Module):
         dTdx = dTdy[:, 1:, 1:]
 
         lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
-        rhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
+        rhs = lhs.clone() 
 
         for i in range(self.params['batch_size']):
             b, a = signal.bessel(3, w_c[i], 'low', analog=True, norm='phase')

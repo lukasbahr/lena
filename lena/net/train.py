@@ -35,7 +35,7 @@ def train(data, observer, options):
         # Train
         for i, batch in enumerate(trainloader, 0):
             # Split batch into inputs and labels
-            inputs = torch.tensor(batch[:, :observer.dim_x+1]).to(device)
+            inputs = batch[:, :observer.dim_x+1].to(device)
 
             # Zero gradients
             optimizer.zero_grad()

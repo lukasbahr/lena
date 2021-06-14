@@ -109,7 +109,7 @@ class LuenebergerObserver():
             z = y[self.dim_x:len(y)]
             x_dot = self.f(x) + self.g(x) * self.u(t)
             z_dot = torch.matmul(self.D, z)+self.F*self.h(x)+self.F*self.e(t)
-            return torch.cat((torch.tensor(x_dot), z_dot))
+            return torch.cat((x_dot, z_dot))
 
         # Output timestemps of solver
         tq = torch.arange(tsim[0], tsim[1], dt)
