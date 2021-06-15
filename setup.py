@@ -4,9 +4,9 @@ setup(
     name='lena',
     url='https://github.com/lukasbahr/lena',
     author='Lukas Bahr',
-    packages=['lnos.net', 'lnos.datasets', 'lnos.observer'],
+    packages=['lena.net', 'lena.datasets', 'lena.observer'],
     install_requires=['numpy', 'torch', 'scipy', 'matplotlib', 'torchdiffeq', 'smt'],
     version='0.01',
     license='MIT',
-    description='Implementation of lnos',
+    description='Implementation of lena',
 )
