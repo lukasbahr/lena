@@ -48,22 +48,28 @@ def generateTrainingData(observer, params):
     # or generate trajectories for every initial value (x_1_i, x_2_i, z_0)
     if params['type'] == 'pairs':
 
-        # Create dataframes
-        data = torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
+        if  params['experiment'] == 'autonomous':
 
-        for i in range(nsims):
-            # Eigenvalues for D
-            w_c = random.uniform(2.5, 2.5) * math.pi
-            b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
+            # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
+            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))),dim=1)
 
-            eigen = np.roots(a)
+        elif params['experiment'] == 'noise':
+            # Create dataframe
+            data = torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
 
-            # Place eigenvalue
-            observer.D = observer.tensorDFromEigen(eigen)
-
-            # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
-            w_0 = torch.cat((mesh[i,:], torch.zeros((observer.dim_z))))
-            data[i, :] = torch.cat((torch.tensor([w_c]), w_0))
+            for i in range(nsims):
+                # Eigenvalues for D
+                w_c = random.uniform(2.5, 2.5) * math.pi
+                b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
+    
+                eigen = np.roots(a)
+    
+                # Place eigenvalue
+                observer.D = observer.tensorDFromEigen(eigen)
+    
+                # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
+                w_0 = torch.cat((mesh[i,:], torch.zeros((observer.dim_z))))
+                data[i, :] = torch.cat((torch.tensor([w_c]), w_0))
 
     return data.float()
 

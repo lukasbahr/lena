@@ -68,12 +68,12 @@ class Autoencoder(nn.Module):
         # Compute gradients of T_u with respect to inputs
         dTdx = torch.autograd.functional.jacobian(
             self.encoder, x, create_graph=False, strict=False, vectorize=False)
-        dTdx = dTdx[dTdx != 0].reshape((self.options['batchSize'], self.observer.dim_z, self.observer.dim_x))
+        dTdx = dTdx[dTdx != 0].reshape((self.params['batch_size'], self.observer.dim_z, self.observer.dim_x))
 
-        loss1 = self.options['reconLambda'] * mse(x, x_hat)
+        loss1 = self.params['recon_lambda'] * mse(x, x_hat)
 
-        lhs = torch.zeros((self.observer.dim_z, self.options['batchSize']))
-        for i in range(self.options['batchSize']):
+        lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
+        for i in range(self.params['batch_size']):
             lhs[:, i] = torch.matmul(dTdx[i], self.observer.f(x.T).T[i]).T
 
         rhs = torch.matmul(self.observer.D.to(self.device),

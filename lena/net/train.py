@@ -6,28 +6,32 @@ import torch.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
-def train(data, observer, options):
+def train(data, observer, params):
+
+    dim_x = observer.dim_x
+    dim_z = observer.dim_z
+    optionalDim = observer.optionalDim
 
     # Make torch use the GPU
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize Autoencoder
-    model = Autoencoder(observer, options, device)
+    model = Autoencoder(observer, params, device)
     model.to(device)
 
     # Set optimizer
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Make use of tensorboard
-    if options['is_tensorboard']:
+    if params['is_tensorboard']:
         writer = SummaryWriter()
 
     # Create trainloader
-    trainloader = utils.data.DataLoader(data, batch_size=options['batch_size'],
+    trainloader = utils.data.DataLoader(data, batch_size=params['batch_size'],
                                         shuffle=True, num_workers=2, drop_last=True)
 
     # Train autoencoder
-    for epoch in range(options['epochs']):
+    for epoch in range(params['epochs']):
 
         # Track loss
         running_loss = 0.0
@@ -35,7 +39,7 @@ def train(data, observer, options):
         # Train
         for i, batch in enumerate(trainloader, 0):
             # Split batch into inputs and labels
-            inputs = batch[:, :observer.dim_x+1].to(device)
+            inputs = batch[:, :dim_x+optionalDim].to(device)
 
             # Zero gradients
             optimizer.zero_grad()
@@ -44,10 +48,13 @@ def train(data, observer, options):
             z, x_hat = model(inputs)
 
             # Compute loss
-            loss, loss1, loss2 = model.loss(inputs, x_hat, z)
+            if params['experiment'] == 'autonomous':
+                loss, loss1, loss2 = model.loss_auto(inputs, x_hat, z)
+            elif params['experiment'] == 'noise':
+                loss, loss1, loss2 = model.loss_noise(inputs, x_hat, z)
 
             # Write loss to tensorboard
-            if options['is_tensorboard']:
+            if params['is_tensorboard']:
                 writer.add_scalars("Loss/train", {
                     'loss': loss,
                     'loss1': loss1,
@@ -69,14 +76,14 @@ def train(data, observer, options):
 
         print('====> Epoch: {} done!'.format(epoch + 1))
 
-        # Validate prediction after each epoch in tensorboard
-        if options['is_tensorboard']:
+        # Validate random prediction after each epoch in tensorboard
+        if params['is_tensorboard']:
 
             randInt = torch.randint(0, data.shape[0], (1,))[0]
 
             # Predict for a random datapoint
             with torch.no_grad():
-                inputs = data[randInt, :observer.dim_x+1].to(device)
+                inputs = data[randInt, :observer.dim_x+observer.optionalDim].to(device)
                 z, x_hat = model(inputs.float())
 
             # Simulation parameters
@@ -94,8 +101,8 @@ def train(data, observer, options):
             # Create matplot figure
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
-            ax.plot(tq, w_pred[:, :2, 0])
-            ax.plot(tq_, w_truth[:, :2, 0])
+            ax.plot(tq, w_pred[:, :observer.dim_x, 0])
+            ax.plot(tq_, w_truth[:, :observer.dim_x, 0])
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
@@ -103,7 +110,7 @@ def train(data, observer, options):
     print('Finished Training')
 
     # Close tensorboard writer
-    if options['is_tensorboard']:
+    if params['is_tensorboard']:
         writer.close()
 
     return model

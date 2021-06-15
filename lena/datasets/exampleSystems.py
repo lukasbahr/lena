@@ -14,7 +14,7 @@ def getAutonomousSystem():
     dim_x = 2
     dim_y = 1
 
-    return f, h, g, dim_x, dim_y
+    return f, h, g,u, dim_x, dim_y
 
 
 def getVanDerPohlSystem():
