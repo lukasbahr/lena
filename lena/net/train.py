@@ -20,7 +20,7 @@ def train(data, observer, params):
     model.to(device)
 
     # Set optimizer
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=params['lr'])
 
     # Make use of tensorboard
     if params['is_tensorboard']:
@@ -60,6 +60,7 @@ def train(data, observer, params):
                     'loss1': loss1,
                     'loss2': loss2,
                 }, i + (epoch*len(trainloader)))
+                writer.flush()
 
             # Gradient step and optimize
             loss.backward()
@@ -106,6 +107,7 @@ def train(data, observer, params):
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
+            writer.flush()
 
     print('Finished Training')
 

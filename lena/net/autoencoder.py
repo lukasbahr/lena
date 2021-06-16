@@ -125,6 +125,7 @@ class Autoencoder(nn.Module):
 
         return loss, loss1, loss2
 
+
     def forward(self, x):
         """
         Takes a batch of samples, encodes them, and then decodes them.
