@@ -84,8 +84,8 @@ def train(data, observer, params):
 
             # Predict for a random datapoint
             with torch.no_grad():
-                inputs = data[randInt, :observer.dim_x+observer.optionalDim].to(device)
-                z, x_hat = model(inputs.float())
+                inputs = data[randInt, observer.dim_x+observer.optionalDim:].to(device)
+                x_hat = model.decoder(inputs.float())
 
             # Simulation parameters
             tsim = (0, 40)
