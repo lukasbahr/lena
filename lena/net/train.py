@@ -21,6 +21,7 @@ def train(data, observer, params):
 
     # Set optimizer
     optimizer = optim.Adam(model.parameters(), lr=params['lr'])
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=params['lr_milestones'], gamma=0.1)
 
     # Make use of tensorboard
     if params['is_tensorboard']:
@@ -75,7 +76,10 @@ def train(data, observer, params):
                       (epoch + 1, i + 1, running_loss / 200))
                 running_loss = 0.00
 
-        print('====> Epoch: {} done!'.format(epoch + 1))
+        print('====> Epoch: {} done! LR: {}'.format(epoch + 1, optimizer.param_groups[0]["lr"]))
+
+        # Adjust learning rate
+        scheduler.step()
 
         # Validate random prediction after each epoch in tensorboard
         if params['is_tensorboard']:
