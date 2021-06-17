@@ -106,8 +106,12 @@ def train(data, observer, params):
             # Create matplot figure
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
-            ax.plot(tq, w_pred[:, :observer.dim_x, 0])
-            ax.plot(tq_, w_truth[:, :observer.dim_x, 0])
+            ax.plot(tq, w_pred[:, :observer.dim_x, 0], color='red', linestyle='dashed',label='x_hat')
+            ax.plot(tq_, w_truth[:, :observer.dim_x, 0], color='blue', label='x')
+
+            ax.set_title('Simulation for true and estimated initial conditions')
+            ax.set_ylabel('state')
+            ax.set_xlabel('time')
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
