@@ -44,47 +44,66 @@ def generateTrainingData(observer, params):
     # Set simulation step width
     dt = params['simulation_step']
 
+    # Advance k/min(lambda) in time
+    k = 10
+    t_c = k/min(abs(observer.eigenD.real))
+    nsims = mesh.shape[0]
+
     # Generate either pairs of (x_i, z_i) values by simulating back and then forward in time
     # or generate trajectories for every initial value (x_1_i, x_2_i, z_0)
     if params['type'] == 'pairs':
 
-        if  params['experiment'] == 'autonomous':
+        if params['experiment'] == 'autonomous':
+
+            # Create dataframes
+            y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
+            y_1 = y_0.clone()
+
+            # Simulate backward in time
+            tsim = (0, -t_c)
+            y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
+            tq_bw, data_bw = observer.simulateLueneberger(y_0, tsim, -dt)
+
+            # Simulate forward in time starting from the last point from previous simulation
+            tsim = (-t_c, 0)
+            y_1[:observer.dim_x, :] = data_bw[-1, :observer.dim_x, :]
+            tq, data_fw = observer.simulateLueneberger(y_1, tsim, dt)
 
             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
-            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))),dim=1)
+            data = torch.transpose(data_fw[-1, :, :], 0, 1).float()
 
         elif params['experiment'] == 'noise':
             # Create dataframe
-            data = torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
+            data=torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
 
             for i in range(nsims):
                 # Eigenvalues for D
-                w_c = random.uniform(2.5, 2.5) * math.pi
-                b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
-    
-                eigen = np.roots(a)
-    
+                w_c=random.uniform(2.5, 2.5) * math.pi
+                b, a=signal.bessel(3, w_c, 'low', analog=True, norm='phase')
+
+                eigen=np.roots(a)
+
                 # Place eigenvalue
-                observer.D = observer.tensorDFromEigen(eigen)
-    
+                observer.D=observer.tensorDFromEigen(eigen)
+
                 # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
-                w_0 = torch.cat((mesh[i,:], torch.zeros((observer.dim_z))))
-                data[i, :] = torch.cat((torch.tensor([w_c]), w_0))
+                w_0=torch.cat((mesh[i, :], torch.zeros((observer.dim_z))))
+                data[i, :]=torch.cat((torch.tensor([w_c]), w_0))
 
     return data.float()
 
 
 def processModel(data, observer, model, params):
-    timestr = time.strftime("%Y%m%d-%H%M%S")
+    timestr=time.strftime("%Y%m%d-%H%M%S")
 
-    path = params['path'] + '/' + timestr
+    path=params['path'] + '/' + timestr
 
     torch.save(model.state_dict(), path+"_model.pt")
 
-    mesh = generateMesh(params['validation'])
-    data_val = generateTrainingData(observer, params['validation'])
+    mesh=generateMesh(params['validation'])
+    data_val=generateTrainingData(observer, params['validation'])
 
-    z, x_hat = model(data_val[:, :observer.dim_x+1])
+    z, x_hat=model(data_val[:, :observer.dim_x+1])
 
     np.savetxt(path+"_train_data.csv", data, delimiter=",")
     np.savetxt(path+"_val_data.csv", data_val, delimiter=",")
@@ -96,12 +115,12 @@ def processModel(data, observer, model, params):
 
     plot.plotLogError2D(mesh, x_hat[:, 1:].detach().numpy(), mesh, params)
 
-    indices = torch.randperm(x_hat[:, 1:].shape[0])[:params['validation']['val_size']]
-    y_0_hat = torch.cat((x_hat[indices, 1:], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
-    y_0 = torch.cat((data_val[indices, 1:observer.dim_x+1], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
+    indices=torch.randperm(x_hat[:, 1:].shape[0])[:params['validation']['val_size']]
+    y_0_hat=torch.cat((x_hat[indices, 1:], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
+    y_0=torch.cat((data_val[indices, 1:observer.dim_x+1], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
 
-    tq, w_hat = observer.simulateLueneberger(y_0_hat, (0, 50), params['data']['simulation_step'])
-    tq, w = observer.simulateLueneberger(y_0, (0, 50), params['data']['simulation_step'])
+    tq, w_hat=observer.simulateLueneberger(y_0_hat, (0, 50), params['data']['simulation_step'])
+    tq, w=observer.simulateLueneberger(y_0, (0, 50), params['data']['simulation_step'])
 
     for i in range(len(indices)):
         plot.plotSimulation2D(tq, w[:, :observer.dim_x, i].detach().numpy(),
