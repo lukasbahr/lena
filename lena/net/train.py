@@ -64,7 +64,7 @@ def train(data, observer, params):
                 writer.flush()
 
             # Gradient step and optimize
-            loss1.backward()
+            loss.backward()
             optimizer.step()
 
             # Print statistics

@@ -1,6 +1,8 @@
 from lena.observer.lueneberger import LuenebergerObserver
 import numpy as np
 import torch
+from scipy import signal
+import math
 
 
 def getAutonomousSystem():
@@ -53,7 +55,12 @@ def createDefaultObserver(params):
     observer.g = g
     observer.u = u
 
+    # Eigenvalues for D
+    b, a = signal.bessel(3, 2*math.pi, 'low', analog=True, norm='phase')
+    eigen = np.roots(a)
+
     # Set system dynamics
+    observer.D = observer.tensorDFromEigen(eigen)
     observer.F = torch.Tensor([[1.0], [1.0], [1.0]])
 
     return observer
