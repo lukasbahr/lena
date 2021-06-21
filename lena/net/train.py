@@ -125,7 +125,7 @@ def train(data, observer, params):
 
             ax_z.set_ylabel('state')
             ax_z.set_xlabel('time')  
-            ax_trans.set_title('Simulation z')  
+            ax_z.set_title('Simulation z')  
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
