@@ -84,7 +84,7 @@ class LuenebergerObserver():
 
         return eigenCell
 
-    def simulateSystem(self, y_0: torch.tensor, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
+    def simulateLueneberger(self, y_0: torch.tensor, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
         """
         Runs and outputs the results from 
         multiple simulations of an input-affine nonlinear system driving a 
@@ -114,39 +114,3 @@ class LuenebergerObserver():
         sol = odeint(dydt, y_0, tq)
 
         return tq, sol
-
-    def simulateLueneberger(self, y: torch.tensor, tsim: tuple, dt: float) -> [torch.tensor, torch.tensor]:
-        """
-        Runs and outputs the results from 
-        multiple simulations of an input-affine nonlinear system driving a 
-        Luenberger observer target system.
-
-        Arguments:
-            tsim -- tuple of (start,end)
-            dt -- step width
-            y -- measurement
-
-        Returns:
-            tq -- array timesteps
-            sol -- solver solution for x_dot and z_dot
-        """
-
-        def dzdt(t, z):
-            z_dot = torch.matmul(self.D, z)+self.F*self.y+self.F*self.e(t)
-            return z_dot
-
-        # Output timestemps of solver
-        tq = torch.arange(tsim[0], tsim[1], dt)
-
-        # Initial z_0
-        z_0 = torch.tensor([[0.],[0.],[0.]])
-
-        # Measurement y
-        self.y = y
-
-        # Solve
-        sol = odeint(dzdt, z_0, tq)
-
-        return tq, sol
-
-       

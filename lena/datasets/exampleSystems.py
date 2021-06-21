@@ -16,7 +16,7 @@ def getAutonomousSystem():
     dim_x = 2
     dim_y = 1
 
-    return f, h, g,u, dim_x, dim_y
+    return f, h, h_x_like, g, u, dim_x, dim_y
 
 
 def getVanDerPohlSystem():
@@ -35,6 +35,7 @@ def getVanDerPohlSystem():
 
     return f, h, g, u, dim_x, dim_y
 
+def h_x_like(x): return torch.cat((x[0,:],torch.zeros_like(x[0,:])))
 
 def createDefaultObserver(params):
     if params['name'] == 'autonomous':
@@ -52,6 +53,8 @@ def createDefaultObserver(params):
     observer.h = h
     observer.g = g
     observer.u = u
+
+    observer.h_x_like = h_x_like
 
     # Eigenvalues for D
     b, a = signal.bessel(3, 2*math.pi, 'low', analog=True, norm='phase')

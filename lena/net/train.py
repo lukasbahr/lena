@@ -93,18 +93,19 @@ def train(data, observer, params):
 
             # Simulate forward with y_t
             x = data[randInt, observer.optionalDim:observer.dim_x+observer.optionalDim:]
-            y = observer.h(x.unsqueeze(1))
-            tq_z, z = observer.simulateLueneberger(y, tsim, dt)
+            w_0_pred = torch.cat((observer.h_x_like(x.unsqueeze(1)), torch.zeros(observer.dim_z))).reshape(-1, 1)
+            tq_z, w_pred = observer.simulateLueneberger(w_0_pred, tsim, dt)
+            z = w_pred[:,observer.optionalDim+observer.dim_x:]
 
             # Predict x_hat with T_star(z_i)
             with torch.no_grad():
                 x_hat = model.decoder(z.squeeze().float())
 
             # Set inital simulation value for truth
-            w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.tensor([0.,0.,0.]))).reshape(5, 1)
+            w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.zeros(observer.dim_z))).reshape(-1, 1)
 
             # Simulate system for initial values
-            tq_, w_truth = observer.simulateSystem(w_0_truth, tsim, dt)
+            tq_, w_truth = observer.simulateLueneberger(w_0_truth, tsim, dt)
 
             # Create matplot figure
             fig = plt.figure()
