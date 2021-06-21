@@ -117,6 +117,7 @@ def train(data, observer, params):
 
             ax_trans.set_ylabel('state')
             ax_trans.set_xlabel('time')  
+            ax_trans.set_title('Simulation x, x_hat')  
             
             # Create ax_z figure
             ax_z = fig.add_subplot(2,1,2)
@@ -124,6 +125,7 @@ def train(data, observer, params):
 
             ax_z.set_ylabel('state')
             ax_z.set_xlabel('time')  
+            ax_trans.set_title('Simulation z')  
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
