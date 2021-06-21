@@ -107,14 +107,23 @@ def train(data, observer, params):
             # Simulate system for initial values
             tq_, w_truth = observer.simulateLueneberger(w_0_truth, tsim, dt)
 
-            # Create matplot figure
-            fig = plt.figure()
-            ax = fig.add_subplot(1, 1, 1)
-            ax.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed',label='x_hat')
-            ax.plot(tq_, w_truth[:, :observer.dim_x, 0], color='blue', label='x')
+            # Create fig with 300 dpi
+            fig = plt.figure(dpi=300)
 
-            ax.set_ylabel('state')
-            ax.set_xlabel('time')
+            # Create ax_trans figure
+            ax_trans = fig.add_subplot(2, 1, 1)
+            ax_trans.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed',label='x_hat')
+            ax_trans.plot(tq_, w_truth[:, :observer.dim_x, 0], color='blue', label='x')
+
+            ax_trans.set_ylabel('state')
+            ax_trans.set_xlabel('time')  
+            
+            # Create ax_z figure
+            ax_z = fig.add_subplot(2,1,2)
+            ax_z.plot(tq_z, w_pred[:,observer.optionalDim+observer.dim_x:].squeeze())
+
+            ax_z.set_ylabel('state')
+            ax_z.set_xlabel('time')  
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
