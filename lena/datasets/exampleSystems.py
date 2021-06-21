@@ -24,11 +24,9 @@ def getVanDerPohlSystem():
     eps = 1
     def f(x): return torch.cat((torch.reshape(x[1, :], (1, -1)),
                                 torch.reshape(eps*(1-torch.pow(x[0, :], 2))*x[1, :]-x[0, :], (1, -1))))
-
     def h(x): return torch.reshape(x[0, :], (1, -1))
     def g(x): return torch.cat((torch.reshape(torch.zeros_like(
         x[1, :]), (1, -1)), torch.reshape(torch.ones_like(x[0, :]), (1, -1))))
-
     def u(t): return 10e-3 + 9.99 * 10e-5*t
 
     # System dimension

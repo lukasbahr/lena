@@ -84,32 +84,34 @@ def train(data, observer, params):
         # Validate random prediction after each epoch in tensorboard
         if params['is_tensorboard']:
 
-            randInt = torch.randint(0, data.shape[0], (1,))[0]
-
             # Predict for a random datapoint
-            with torch.no_grad():
-                inputs = data[randInt, observer.dim_x+observer.optionalDim:].to(device)
-                x_hat = model.decoder(inputs.float())
+            randInt = torch.randint(0, data.shape[0], (1,))[0]
 
             # Simulation parameters
             tsim = (0, 40)
             dt = 1e-2
 
-            # Set inital simulation value for prediction and truth
-            w_0_pred = torch.cat((x_hat[:observer.dim_x].to('cpu'), torch.tensor([0.,0.,0.]))).reshape(5, 1)
+            # Simulate forward with y_t
+            x = data[randInt, observer.optionalDim:observer.dim_x+observer.optionalDim:]
+            y = observer.h(x.unsqueeze(1))
+            tq_z, z = observer.simulateLueneberger(y, tsim, dt)
+
+            # Predict x_hat with T_star(z_i)
+            with torch.no_grad():
+                x_hat = model.decoder(z.squeeze().float())
+
+            # Set inital simulation value for truth
             w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.tensor([0.,0.,0.]))).reshape(5, 1)
 
-            # Simulate for initial values
-            tq, w_pred = observer.simulateLueneberger(w_0_pred, tsim, dt)
-            tq_, w_truth = observer.simulateLueneberger(w_0_truth, tsim, dt)
+            # Simulate system for initial values
+            tq_, w_truth = observer.simulateSystem(w_0_truth, tsim, dt)
 
             # Create matplot figure
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
-            ax.plot(tq, w_pred[:, :observer.dim_x, 0], color='red', linestyle='dashed',label='x_hat')
+            ax.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed',label='x_hat')
             ax.plot(tq_, w_truth[:, :observer.dim_x, 0], color='blue', label='x')
 
-            ax.set_title('Simulation for true and estimated initial conditions')
             ax.set_ylabel('state')
             ax.set_xlabel('time')
 
