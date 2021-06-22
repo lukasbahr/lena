@@ -18,7 +18,7 @@ def plotLogError2D(x, x_hat, mesh, params):
     timestr = time.strftime("%Y%m%d-%H%M%S")
 
     # Create matplot figure
-    fig = plt.figure()
+    fig = plt.figure(dpi=300)
     ax = fig.add_subplot(1, 1, 1)
 
     pos = ax.scatter(mesh[:, 0], mesh[:, 1], cmap='jet',
@@ -32,16 +32,18 @@ def plotLogError2D(x, x_hat, mesh, params):
     else:
         plt.show()
 
+    return fig, ax
+
 
 def plotTrajectory2D(x):
     plt.scatter(x[0], x[1])
     plt.show()
 
 
-def plotSimulation2D(tq, x, x_hat, params, idx=0):
+def plotSimulation2D(tq, x, params, x_hat=0, idx=0):
     timestr = time.strftime("%Y%m%d-%H%M%S")
 
-    fig = plt.figure()
+    fig = plt.figure(dpi=300)
     ax = fig.add_subplot(1, 1, 1)
 
     ax.set_title('Simulation for true and estimated initial conditions')
@@ -49,10 +51,13 @@ def plotSimulation2D(tq, x, x_hat, params, idx=0):
     ax.set_xlabel('time')
 
     ax.plot(tq, x, color='blue', label='x')
-    ax.plot(tq, x_hat, color='red', linestyle='dashed',label='x_hat')
-
+    if x_hat is not 0:
+        ax.plot(tq, x_hat, color='red', linestyle='dashed',label='x_hat')
 
     if params['write_experiment']:
         fig.savefig(params['path']+'/'+timestr+'_simulation_'+str(idx)+'.png', dpi=300)
     else:
         plt.show()
+
+    return fig, ax
+

@@ -91,21 +91,17 @@ def train(data, observer, params):
             tsim = (0, 40)
             dt = 1e-2
 
-            # Simulate forward with y_t
-            x = data[randInt, observer.optionalDim:observer.dim_x+observer.optionalDim:]
-            w_0_pred = torch.cat((observer.h_x_like(x.unsqueeze(1)), torch.zeros(observer.dim_z))).reshape(-1, 1)
-            tq_z, w_pred = observer.simulateLueneberger(w_0_pred, tsim, dt)
-            z = w_pred[:,observer.optionalDim+observer.dim_x:]
+            # Get measurements y
+            w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.zeros(observer.dim_z))).reshape(-1, 1)
+            tq_, w_truth = observer.simulateLueneberger(w_0_truth, tsim, dt)
+
+            # Solve $z_dot$
+            y = torch.cat((tq_.unsqueeze(1), observer.h(w_truth[:, observer.optionalDim:observer.optionalDim+observer.dim_x,0].T).T),dim=1)
+            tq_pred, w_pred = observer.simulateZ(y, tsim, dt)
 
             # Predict x_hat with T_star(z_i)
             with torch.no_grad():
-                x_hat = model.decoder(z.squeeze().float())
-
-            # Set inital simulation value for truth
-            w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.zeros(observer.dim_z))).reshape(-1, 1)
-
-            # Simulate system for initial values
-            tq_, w_truth = observer.simulateLueneberger(w_0_truth, tsim, dt)
+                x_hat = model.decoder(w_pred[:,:,0].float())
 
             # Create fig with 300 dpi
             fig = plt.figure(dpi=300)
@@ -121,7 +117,7 @@ def train(data, observer, params):
             
             # Create ax_z figure
             ax_z = fig.add_subplot(2,1,2)
-            ax_z.plot(tq_z, w_pred[:,observer.optionalDim+observer.dim_x:].squeeze())
+            ax_z.plot(tq_pred, w_pred[:,observer.optionalDim+observer.dim_x:].squeeze())
 
             ax_z.set_ylabel('state')
             ax_z.set_xlabel('time')  

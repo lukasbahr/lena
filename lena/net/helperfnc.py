@@ -123,5 +123,6 @@ def processModel(data, observer, model, params):
     tq, w=observer.simulateLueneberger(y_0, (0, 50), params['data']['simulation_step'])
 
     for i in range(len(indices)):
-        plot.plotSimulation2D(tq, w[:, :observer.dim_x, i].detach().numpy(),
-                              w_hat[:, :observer.dim_x, i].detach().numpy(), params, i)
+        plot.plotSimulation2D(tq, w[:, :observer.dim_x, i].detach().numpy(),params,
+                              w_hat[:, :observer.dim_x, i].detach().numpy(), i)
+

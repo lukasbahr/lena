@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import linalg
 from torchdiffeq import odeint
+from scipy.interpolate import interp1d
+from torchinterp1d import Interp1d
 import torch
 
 
@@ -114,3 +116,85 @@ class LuenebergerObserver():
         sol = odeint(dydt, y_0, tq)
 
         return tq, sol
+
+    def simulateZ(self, y, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
+        """
+        Runs and outputs the results from 
+        multiple simulations of an input-affine nonlinear system driving a 
+        Luenberger observer target system.
+
+        Arguments:
+            y_0 -- initial value
+            tsim -- tuple of (start,end)
+            dt -- step width
+
+        Returns:
+            tq -- array timesteps
+            sol -- solver solution for x_dot and z_dot
+        """
+
+        def dydt(t, z):
+            z_dot = torch.matmul(self.D, z)+self.F*self.measurement(t)
+            return z_dot
+
+        # Output timestemps of solver
+        tq = torch.arange(tsim[0], tsim[1], dt)
+
+        # Intepolation of y
+        self.measurement = self.interpolate_func(y)
+
+        # Zero initial value
+        z_0 = torch.zeros((self.dim_z,1))
+
+        # Solve
+        sol = odeint(dydt, z_0, tq)
+
+        return tq, sol
+
+    # Vector x = (t_i, x(t_i)) of time steps t_i at which x is known is interpolated at given
+    # time t, interpolating along each output dimension independently if there
+    # are more than one. Returns a function interp(t) which interpolates x at times t
+    def interpolate_func(self, x, method='linear') -> callable:
+        """Takes a vector of times and values, returns a callable function which
+        interpolates the given vector (along each output dimension independently).
+        :param x: vector of (t_i, x(t_i)) to interpolate
+        :type x: torch.tensor
+        :returns: function interp(t, other args) which interpolates x at t
+        :rtype:  Callable[[List[float]], np.ndarray]
+        Author: Mona Buisson-Fenet 
+        """
+        if torch.is_tensor(x):  # not building computational graph!
+            with torch.no_grad():
+                if method != 'linear':
+                    raise NotImplementedError(
+                        'Only linear interpolator available in pytorch!')
+                points, values = x[:, 0].contiguous(), x[:, 1:].contiguous()
+                interp_list = [Interp1d() for i in range(values.shape[1])]
+                def interp(t):
+                    if len(t.shape) == 0:
+                        t = t.reshape(1, ).contiguous()
+                    else:
+                        t = t.contiguous()
+                    if len(x) == 1:
+                        # If only one value of x available, assume constant
+                        interpolate_x = x[0, 1:].repeat(len(t), 1)
+                    else:
+                        res = [interp_list[i](points, values[:, i], t) for i
+                            in range(values.shape[1])]
+                        interpolate_x = torch.squeeze(torch.stack(res), dim=1).t()
+                    return interpolate_x
+        else:
+            points, values = x[:, 0], x[:, 1:]
+            interp_list = [interp1d(x=points, y=values[:, i], kind=method)
+                        for i in range(values.shape[1])]
+            def interp(t):
+                if np.isscalar(t):
+                    t = np.array([t])
+                if len(x) == 1:
+                    # If only one value of x available, assume constant
+                    interpolate_x = np.tile(reshape_pt1(x[0, 1:]), (len(t), 1))
+                else:
+                    interpolate_x = np.array([f(t) for f in interp_list]).T
+                return interpolate_x
+        return interp
+    
