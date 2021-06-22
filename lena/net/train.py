@@ -116,8 +116,8 @@ def train(data, observer, params):
             ax_trans.set_title('Simulation x, x_hat')  
             
             # Create ax_z figure
-            ax_z = fig.add_subplot(2,1,2)
-            ax_z.plot(tq_pred, w_pred[:,observer.optionalDim+observer.dim_x:].squeeze())
+            ax_z = fig.add_subplot(2,1,3)
+            ax_z.plot(tq_pred, w_pred[:,:,0])
 
             ax_z.set_ylabel('state')
             ax_z.set_xlabel('time')  
