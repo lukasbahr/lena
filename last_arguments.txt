@@ -1,2 +1,1 @@
---exp_config
-/Users/lukasbahr/lena/experiments/autonomous/exp1/config.yml
+--exp_config=/Users/lukasbahr/lena/experiments/autonomous/exp1/config.yml

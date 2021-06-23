@@ -105,11 +105,11 @@ def train(data, observer, params):
                 x_hat = model.decoder(w_pred[:, :, 0].float())
 
             # Create fig with 300 dpi
-            fig = plt.figure(dpi=300)
+            fig = plt.figure(dpi=50)
             fig.tight_layout(pad=3.0)
 
             # Create ax_trans figure
-            ax_x1 = fig.add_subplot(2, 1, 1)
+            ax_x1 = fig.add_subplot(1, 3, 1)
             ax_x1.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed', label='x_hat')
             ax_x1.plot(tq_, w_truth[:, 0, 0], color='blue', label='x')
 
@@ -118,7 +118,7 @@ def train(data, observer, params):
             ax_x1.set_title('Simulation x_1, x_hat_1')
 
             # Create ax_trans figure
-            ax_x2 = fig.add_subplot(2, 1, 2)
+            ax_x2 = fig.add_subplot(1, 3, 2)
             ax_x2.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed', label='x_hat')
             ax_x2.plot(tq_, w_truth[:, 1, 0], color='blue', label='x')
 
@@ -127,7 +127,7 @@ def train(data, observer, params):
             ax_x2.set_title('Simulation x_2, x_hat_2')
 
             # Create ax_z figure
-            ax_z = fig.add_subplot(2, 1, 3)
+            ax_z = fig.add_subplot(1, 3, 3)
             ax_z.plot(tq_pred, w_pred[:, :, 0])
 
             ax_z.set_ylabel('state')
