@@ -6,8 +6,8 @@ import torch.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
-def train(data, observer, params):
 
+def train(data, observer, params):
     dim_x = observer.dim_x
     dim_z = observer.dim_z
     optionalDim = observer.optionalDim
@@ -92,36 +92,47 @@ def train(data, observer, params):
             dt = 1e-2
 
             # Get measurements y
-            w_0_truth = torch.cat((data[randInt, :observer.dim_x], torch.zeros(observer.dim_z))).reshape(-1, 1)
+            w_0_truth = torch.tensor([[0.4, 0.4, 0, 0, 0]]).T
             tq_, w_truth = observer.simulateLueneberger(w_0_truth, tsim, dt)
 
             # Solve $z_dot$
-            y = torch.cat((tq_.unsqueeze(1), observer.h(w_truth[:, observer.optionalDim:observer.optionalDim+observer.dim_x,0].T).T),dim=1)
+            y = torch.cat((tq_.unsqueeze(1), observer.h(
+                w_truth[:, observer.optionalDim:observer.optionalDim+observer.dim_x, 0].T).T), dim=1)
             tq_pred, w_pred = observer.simulateZ(y, tsim, dt)
 
             # Predict x_hat with T_star(z_i)
             with torch.no_grad():
-                x_hat = model.decoder(w_pred[:,:,0].float())
+                x_hat = model.decoder(w_pred[:, :, 0].float())
 
             # Create fig with 300 dpi
             fig = plt.figure(dpi=300)
+            fig.tight_layout(pad=3.0)
 
             # Create ax_trans figure
-            ax_trans = fig.add_subplot(2, 1, 1)
-            ax_trans.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed',label='x_hat')
-            ax_trans.plot(tq_, w_truth[:, :observer.dim_x, 0], color='blue', label='x')
+            ax_x1 = fig.add_subplot(2, 1, 1)
+            ax_x1.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed', label='x_hat')
+            ax_x1.plot(tq_, w_truth[:, 0, 0], color='blue', label='x')
 
-            ax_trans.set_ylabel('state')
-            ax_trans.set_xlabel('time')  
-            ax_trans.set_title('Simulation x, x_hat')  
-            
+            ax_x1.set_ylabel('state')
+            ax_x1.set_xlabel('time')
+            ax_x1.set_title('Simulation x_1, x_hat_1')
+
+            # Create ax_trans figure
+            ax_x2 = fig.add_subplot(2, 1, 2)
+            ax_x2.plot(tq_, x_hat.to("cpu"), color='red', linestyle='dashed', label='x_hat')
+            ax_x2.plot(tq_, w_truth[:, 1, 0], color='blue', label='x')
+
+            ax_x2.set_ylabel('state')
+            ax_x2.set_xlabel('time')
+            ax_x2.set_title('Simulation x_2, x_hat_2')
+
             # Create ax_z figure
-            ax_z = fig.add_subplot(2,1,2)
-            ax_z.plot(tq_pred, w_pred[:,:,0])
+            ax_z = fig.add_subplot(2, 1, 3)
+            ax_z.plot(tq_pred, w_pred[:, :, 0])
 
             ax_z.set_ylabel('state')
-            ax_z.set_xlabel('time')  
-            ax_z.set_title('Simulation z')  
+            ax_z.set_xlabel('time')
+            ax_z.set_title('Simulation z')
 
             # Write figure to tensorboard
             writer.add_figure("recon", fig, global_step=epoch, close=True, walltime=None)
@@ -134,4 +145,3 @@ def train(data, observer, params):
         writer.close()
 
     return model
-
