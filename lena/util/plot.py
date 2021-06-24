@@ -40,7 +40,7 @@ def plotTrajectory2D(x):
     plt.show()
 
 
-def plotSimulation2D(tq, x, params, x_hat=0, idx=0):
+def plotSimulation2D(tq, x, params={}, x_hat=0, idx=0):
     timestr = time.strftime("%Y%m%d-%H%M%S")
 
     fig = plt.figure(dpi=300)
@@ -48,10 +48,11 @@ def plotSimulation2D(tq, x, params, x_hat=0, idx=0):
 
     ax.set_title('Simulation for true and estimated initial conditions')
     ax.set_ylabel('state')
-    ax.set_xlabel('time')
+    ax.set_xlabel('time' + r'$[s]$')
 
     ax.plot(tq, x, color='blue', label='x')
-    if x_hat is not 0:
+
+    if x_hat != 0:
         ax.plot(tq, x_hat, color='red', linestyle='dashed',label='x_hat')
 
     if params['write_experiment']:

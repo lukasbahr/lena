@@ -86,7 +86,7 @@ class LuenebergerObserver():
 
         return eigenCell
 
-    def simulateLueneberger(self, y_0: torch.tensor, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
+    def simulateSystem(self, y_0: torch.tensor, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
         """
         Runs and outputs the results from 
         multiple simulations of an input-affine nonlinear system driving a 
@@ -117,7 +117,7 @@ class LuenebergerObserver():
 
         return tq, sol
 
-    def simulateZ(self, y, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
+    def simulateLueneberger(self, y, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
         """
         Runs and outputs the results from 
         multiple simulations of an input-affine nonlinear system driving a 

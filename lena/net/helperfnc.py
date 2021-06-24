@@ -62,12 +62,12 @@ def generateTrainingData(observer, params):
             # Simulate backward in time
             tsim = (0, -t_c)
             y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
-            tq_bw, data_bw = observer.simulateLueneberger(y_0, tsim, -dt)
+            tq_bw, data_bw = observer.simulateSystem(y_0, tsim, -dt)
 
             # Simulate forward in time starting from the last point from previous simulation
             tsim = (-t_c, 0)
             y_1[:observer.dim_x, :] = data_bw[-1, :observer.dim_x, :]
-            tq, data_fw = observer.simulateLueneberger(y_1, tsim, dt)
+            tq, data_fw = observer.simulateSystem(y_1, tsim, dt)
 
             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
             data = torch.transpose(data_fw[-1, :, :], 0, 1).float()
@@ -119,8 +119,8 @@ def processModel(data, observer, model, params):
     y_0_hat=torch.cat((x_hat[indices, 1:], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
     y_0=torch.cat((data_val[indices, 1:observer.dim_x+1], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
 
-    tq, w_hat=observer.simulateLueneberger(y_0_hat, (0, 50), params['data']['simulation_step'])
-    tq, w=observer.simulateLueneberger(y_0, (0, 50), params['data']['simulation_step'])
+    tq, w_hat=observer.simulateSystem(y_0_hat, (0, 50), params['data']['simulation_step'])
+    tq, w=observer.simulateSystem(y_0, (0, 50), params['data']['simulation_step'])
 
     for i in range(len(indices)):
         plot.plotSimulation2D(tq, w[:, :observer.dim_x, i].detach().numpy(),params,

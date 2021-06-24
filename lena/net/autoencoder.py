@@ -59,7 +59,7 @@ class Autoencoder(nn.Module):
             x = self.act(layer(x))
         return x
 
-    def loss_auto(self, x, x_hat, z):
+    def loss_auto(self, x, z, x_hat, z_hat):
         """
         Loss function for autonomous experiment
         """
@@ -77,14 +77,16 @@ class Autoencoder(nn.Module):
             lhs[:, i] = torch.matmul(dTdx[i], self.observer.f(x.T).T[i]).T
 
         rhs = torch.matmul(self.observer.D.to(self.device),
-                           z.T) + torch.matmul(self.observer.F.to(self.device),
+                           z_hat.T) + torch.matmul(self.observer.F.to(self.device),
                                                self.observer.h(x.T).to(self.device))
 
         loss2 = mse(lhs.to(self.device), rhs)
 
-        loss = loss1 + loss2
+        loss3 = self.params['recon_lambda'] * mse(z, z_hat)
 
-        return loss, loss1, loss2
+        loss = loss1 + loss2 + loss3
+
+        return loss, loss1, loss2, loss3
 
     def loss_noise(self, y, y_pred, latent):
         """
