@@ -21,7 +21,7 @@ def getAutonomousSystem():
 
 def getVanDerPohlSystem():
     # Define plant dynamics
-    eps = 0.15
+    eps = 1
     def f(x): return torch.cat((torch.reshape(x[1, :], (1, -1)),
                                 torch.reshape(eps*(1-torch.pow(x[0, :], 2))*x[1, :]-x[0, :], (1, -1))))
     def h(x): return torch.reshape(x[0, :], (1, -1))

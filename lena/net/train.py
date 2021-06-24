@@ -86,15 +86,12 @@ def train(data, observer, params):
         # Validate random prediction after each epoch in tensorboard
         if params['is_tensorboard']:
 
-            # Predict for a random datapoint
-            randInt = torch.randint(0, data.shape[0], (1,))[0]
-
             # Simulation parameters
-            tsim = (0, 40)
+            tsim = (0, 100)
             dt = 1e-2
 
             # Get measurements y by simulating from $x$ forward in time
-            w_0_truth = torch.tensor([[0.3,0.3, 0, 0, 0]]).T
+            w_0_truth = torch.tensor([[1.,2., 0., 0., 0.]]).T
             tq_, w_truth = observer.simulateSystem(w_0_truth, tsim, dt)
 
             # Solve $z_dot$
