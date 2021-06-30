@@ -27,7 +27,10 @@ def getVanDerPohlSystem():
     def h(x): return torch.reshape(x[0, :], (1, -1))
     def g(x): return torch.cat((torch.reshape(torch.zeros_like(
         x[1, :]), (1, -1)), torch.reshape(torch.ones_like(x[0, :]), (1, -1))))
-    def u(t): return 10e-3 + 9.99 * 10e-5*t
+    # def u(t): return 10e-3 + 9.99 * 10e-5*t
+    # def u(t): return math.sin(2*math.pi*(10e-3 + 9.99 * 10e-5*t))
+    def u(t): return 0
+
 
     # System dimension
     dim_x = 2

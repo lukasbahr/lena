@@ -6,6 +6,7 @@ from lena.util.configlib import config as args
 import lena.util.configlib as configlib
 from lena.util.params import Params
 from lena.net.train import train
+from lena.net.train import trainNonlinearLuenbergerTransformation
 from lena.net.helperfnc import generateTrainingData, processModel
 from lena.datasets.exampleSystems import createDefaultObserver
 

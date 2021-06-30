@@ -113,7 +113,7 @@ class LuenebergerObserver():
         tq = torch.arange(tsim[0], tsim[1], dt)
 
         # Solve
-        sol = odeint(dydt, y_0, tq)
+        sol = odeint(dydt, y_0, tq, rtol=1e-3, atol=1e-6,)
 
         return tq, sol
 

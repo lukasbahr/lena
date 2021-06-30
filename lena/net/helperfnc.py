@@ -55,22 +55,8 @@ def generateTrainingData(observer, params):
 
         if params['experiment'] == 'autonomous':
 
-            # Create dataframes
-            y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
-            y_1 = y_0.clone()
-
-            # Simulate backward in time
-            tsim = (0, -t_c)
-            y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
-            tq_bw, data_bw = observer.simulateSystem(y_0, tsim, -dt)
-
-            # Simulate forward in time starting from the last point from previous simulation
-            tsim = (-t_c, 0)
-            y_1[:observer.dim_x, :] = data_bw[-1, :observer.dim_x, :]
-            tq, data_fw = observer.simulateSystem(y_1, tsim, dt)
-
             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
-            data = torch.transpose(data_fw[-1, :, :], 0, 1).float()
+            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))),dim=1)
 
         elif params['experiment'] == 'noise':
             # Create dataframe
@@ -89,6 +75,27 @@ def generateTrainingData(observer, params):
                 # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
                 w_0=torch.cat((mesh[i, :], torch.zeros((observer.dim_z))))
                 data[i, :]=torch.cat((torch.tensor([w_c]), w_0))
+
+    elif params['type'] == 'trajectories':
+        # Create dataframe
+        y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
+
+        # Simulate forward in time
+        tsim = (0, 500)
+        y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
+        tq, data_fw = observer.simulateSystem(y_0, tsim, dt)
+
+        data = torch.transpose(data_fw, 0, 1).float()
+
+        # Bin initial data
+        k=3
+        t_c = 3/min(abs(linalg.eig(observer.D)[0].real))
+        idx = max(np.argwhere(tq < t_c))
+
+        # Data contains the trajectories for every initial value
+        # Shape [dim_z, tsim-initial_data, number_simulations]
+        data = data[:,idx[-1]-1:,:]
+        tq = tq[idx[-1]-1:]
 
     return data.float()
 
