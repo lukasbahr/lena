@@ -29,7 +29,7 @@ def train(data, observer, params):
 
     # Create trainloader
     trainloader = utils.data.DataLoader(data, batch_size=params['batch_size'],
-                                        shuffle=True, num_workers=2, drop_last=True)
+                                        shuffle=params['shuffle'], num_workers=2, drop_last=True)
 
     # Train autoencoder
     for epoch in range(params['epochs']):
@@ -51,7 +51,7 @@ def train(data, observer, params):
 
             # Compute loss
             if params['experiment'] == 'autonomous':
-                loss, loss1, loss2, loss3 = model.loss_auto(x, z, x_hat, z_hat)
+                loss, loss1, loss2 = model.loss_auto(x, x_hat, z_hat)
             elif params['experiment'] == 'noise':
                 loss, loss1, loss2 = model.loss_noise(x, x_hat, z)
 
@@ -61,7 +61,6 @@ def train(data, observer, params):
                     'loss': loss,
                     'loss1': loss1,
                     'loss2': loss2,
-                    'loss3': loss3,
                 }, i + (epoch*len(trainloader)))
                 writer.flush()
 
@@ -91,7 +90,7 @@ def train(data, observer, params):
             dt = 1e-2
 
             # Get measurements y by simulating from $x$ forward in time
-            w_0_truth = torch.tensor([[1.,2., 0., 0., 0.]]).T
+            w_0_truth = torch.tensor([[1., 2., 0., 0., 0.]]).T
             tq_, w_truth = observer.simulateSystem(w_0_truth, tsim, dt)
 
             # Solve $z_dot$
@@ -103,28 +102,35 @@ def train(data, observer, params):
             with torch.no_grad():
                 x_hat = model.decoder(w_pred[:, :, 0].float())
 
-
             # Create fig with 300 dpi
             fig = plt.figure(dpi=200)
 
             # Create ax_trans figure
-            ax_x1 = fig.add_subplot(3, 1, 1)
-            ax_x1.plot(tq_, x_hat[:,0].to("cpu"), color='red', linestyle='dashed', label='x_hat')
+            ax_x1 = fig.add_subplot(4, 1, 1)
+            ax_x1.plot(tq_, x_hat[:, 0].to("cpu"), color='red', linestyle='dashed', label='x_hat')
             ax_x1.plot(tq_, w_truth[:, 0, 0], color='blue', label='x')
 
             ax_x1.set_ylabel(r'$x_1$')
             ax_x1.set_xlabel('time' + r'$[s]$')
 
             # Create ax_trans figure
-            ax_x2 = fig.add_subplot(3, 1, 2)
-            ax_x2.plot(tq_, x_hat[:,1].to("cpu"), color='red', linestyle='dashed', label='x_hat')
+            ax_x2 = fig.add_subplot(4, 1, 2)
+            ax_x2.plot(tq_, x_hat[:, 1].to("cpu"), color='red', linestyle='dashed', label='x_hat')
             ax_x2.plot(tq_, w_truth[:, 1, 0], color='blue', label='x')
 
             ax_x2.set_ylabel(r'$x_2$')
             ax_x2.set_xlabel('time' + r'$[s]$')
 
+            # Create ax_trans figure
+            ax_error = fig.add_subplot(4, 1, 3)
+            ax_error.plot(tq_, sqrtError(x_hat[:, 0], w_truth[:, 0, 0]), color='red', label='x_hat')
+            ax_error.plot(tq_, sqrtError(x_hat[:, 1], w_truth[:, 1, 0]), color='blue', label='x')
+
+            ax_error.set_ylabel(r'$x_i-\hat{x_i}$')
+            ax_error.set_xlabel('time' + r'$[s]$')
+
             # Create ax_z figure
-            ax_z = fig.add_subplot(3, 1, 3)
+            ax_z = fig.add_subplot(4, 1, 4)
             ax_z.plot(tq_pred, w_pred[:, :, 0])
 
             ax_z.set_ylabel(r'$z_i$')
@@ -143,3 +149,7 @@ def train(data, observer, params):
         writer.close()
 
     return model
+
+
+def sqrtError(x, x_hat):
+    return x-x_hat

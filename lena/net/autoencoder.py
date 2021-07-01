@@ -33,6 +33,7 @@ class Autoencoder(nn.Module):
         self.encoderLayers = nn.ModuleList()
         self.encoderLayers.append(nn.Linear(dim_x, sizeHL))
         for i in range(numHL):
+            self.encoderLayers.append(self.act)
             self.encoderLayers.append(nn.Linear(sizeHL, sizeHL))
         self.encoderLayers.append(nn.Linear(sizeHL, dim_z))
 
@@ -40,6 +41,7 @@ class Autoencoder(nn.Module):
         self.decoderLayers = nn.ModuleList()
         self.decoderLayers.append(nn.Linear(dim_z, sizeHL))
         for i in range(numHL):
+            self.decoderLayers.append(self.act)
             self.decoderLayers.append(nn.Linear(sizeHL, sizeHL))
         self.decoderLayers.append(nn.Linear(sizeHL, dim_x))
 
@@ -48,7 +50,7 @@ class Autoencoder(nn.Module):
         Encode input to latent space.
         """
         for layer in self.encoderLayers:
-            x = self.act(layer(x))
+            x = layer(x)
         return x
 
     def decoder(self, x):
@@ -56,10 +58,10 @@ class Autoencoder(nn.Module):
         Decode latent space and reconstruct input x
         """
         for layer in self.decoderLayers:
-            x = self.act(layer(x))
+            x = layer(x)
         return x
 
-    def loss_auto(self, x, z, x_hat, z_hat):
+    def loss_auto(self, x, x_hat, z_hat):
         """
         Loss function for autonomous experiment
         """
@@ -82,11 +84,9 @@ class Autoencoder(nn.Module):
 
         loss2 = mse(lhs.to(self.device), rhs)
 
-        loss3 = self.params['recon_lambda'] * mse(z, z_hat)
+        loss = loss1 + loss2 
 
-        loss = loss1 + loss2 + loss3
-
-        return loss, loss1, loss2, loss3
+        return loss, loss1, loss2
 
     def loss_noise(self, y, y_pred, latent):
         """

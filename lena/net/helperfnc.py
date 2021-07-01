@@ -55,22 +55,8 @@ def generateTrainingData(observer, params):
 
         if params['experiment'] == 'autonomous':
 
-            # Create dataframes
-            y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
-            y_1 = y_0.clone()
-
-            # Simulate backward in time
-            tsim = (0, -t_c)
-            y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
-            tq_bw, data_bw = observer.simulateSystem(y_0, tsim, -dt)
-
-            # Simulate forward in time starting from the last point from previous simulation
-            tsim = (-t_c, 0)
-            y_1[:observer.dim_x, :] = data_bw[-1, :observer.dim_x, :]
-            tq, data_fw = observer.simulateSystem(y_1, tsim, dt)
-
             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
-            data = torch.transpose(data_fw[-1, :, :], 0, 1).float()
+            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))),dim=1)
 
         elif params['experiment'] == 'noise':
             # Create dataframe

@@ -6,8 +6,20 @@ from lena.util.configlib import config as args
 import lena.util.configlib as configlib
 from lena.util.params import Params
 from lena.net.train import train
-from lena.net.helperfnc import generateTrainingData, processModel
+from lena.net.helperfnc import generateTrainingData, processModel, generateMesh
 from lena.datasets.exampleSystems import createDefaultObserver
+from sklearn.manifold import TSNE
+
+def plotTSNE(observer,model,params):
+    import matplotlib.pyplot as plt
+
+    data_val=generateTrainingData(observer, params['validation'])
+
+    z, x_hat=model(data_val[:, :observer.dim_x+observer.optionalDim])
+
+    tsne = TSNE(random_state=123).fit_transform(z.detach().numpy())
+    plt.scatter(tsne[:,0], tsne[:,1])
+    plt.show()
 
 # Configuration arguments
 parser = configlib.add_parser("Train config")
@@ -42,8 +54,9 @@ if __name__ == "__main__":
         data = generateTrainingData(observer, params['data'])
         model = train(data, observer, params['model'])
 
+        plotTSNE(observer, model, params)
+
         if params['write_experiment']:
             processModel(data,observer, model, params)
-
 
 
