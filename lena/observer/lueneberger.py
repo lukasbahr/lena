@@ -7,31 +7,42 @@ import torch
 
 
 class LuenebergerObserver():
+    """
+    Class for Lueneberger Observer [https://en.wikipedia.org/wiki/State_observer].
+    """
+
     def __init__(self, dim_x: int, dim_y: int, optionalDim=0):
         """
-        Constructor for setting the dynamics of the Luenberger Observer. 
+        Constructor for setting the dimensions of the Luenberger Observer. 
         Also constructs placeholder for D and F matrices.
 
         Arguments:
-            dim_x -- dimension of states
-            dim_y -- dimension of inputs
-            optionalDim -- additional dimension for experiments
-        Returns:
-            None
+            dim_x: Dimension of states.
+            dim_y: Dimension of inputs.
+            optionalDim: Additional dimensions for experiments.
         """
+        # Set observer dimensions
         self.dim_x = dim_x
         self.dim_y = dim_y
         self.dim_z = dim_y * (dim_x + 1)
         self.optionalDim = optionalDim
 
+        # Set observer matrices D and F
         self.F = torch.zeros((self.dim_z, 1))
-        self.eigenD = torch.zeros((self.dim_z, 1))
         self.D = torch.zeros((self.dim_z, self.dim_z))
 
+        # Eigenvalues of D as conjugate pairs
+        self.eigenD = torch.zeros((self.dim_z, 1))
+
+    # Dynamical function
     def f(self, x): return 0
+    # Measurement vector
     def g(self, x): return 0
+    # Control vector on input
     def h(self, x): return 0
+    # Input on dynamical system
     def u(self, x): return 0
+    # Noise on observation
     def e(self, t): return 0
 
     def tensorDFromEigen(self, eigen: torch.tensor) -> torch.tensor:
@@ -40,10 +51,10 @@ class LuenebergerObserver():
         in form of conjugate complex numbers. 
 
         Arguments:
-            eigen -- dimension of states
+            eigen: Dimension of states.
 
         Returns:
-            D -- conjugate block matrix
+            D: Conjugate block matrix
         """
         self.eigenD = eigen
         eig_complex, eig_real = [x for x in eigen if x.imag != 0], [
@@ -64,10 +75,10 @@ class LuenebergerObserver():
         arguments, and real scalar for each real eigenvalue.
 
         Arguments:
-            eigen -- dimension of states
+            eigen: Dimension of states.
 
         Returns:
-            array -- array of conjugate pairs of eigenvectors
+            array: Array of conjugate pairs of eigenvectors.
         """
         eigenCell = []
 
@@ -93,15 +104,14 @@ class LuenebergerObserver():
         Luenberger observer target system.
 
         Arguments:
-            y_0 -- initial value
-            tsim -- tuple of (start,end)
-            dt -- step width
+            y_0: Initial value for system simulation.
+            tsim: Tuple of (Start, End) time of simulation.
+            dt: Step width of tsim.
 
         Returns:
-            tq -- array timesteps
-            sol -- solver solution for x_dot and z_dot
+            tq: Array of timesteps of tsim.
+            sol: Solver solution.
         """
-
         def dydt(t, y):
             x = y[0:self.dim_x]
             z = y[self.dim_x:len(y)]
@@ -119,20 +129,17 @@ class LuenebergerObserver():
 
     def simulateLueneberger(self, y, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
         """
-        Runs and outputs the results from 
-        multiple simulations of an input-affine nonlinear system driving a 
-        Luenberger observer target system.
+        Runs and outputs the results from Luenberger observer system.
 
         Arguments:
-            y_0 -- initial value
-            tsim -- tuple of (start,end)
-            dt -- step width
+            y_0: Initial value for observer simulation.
+            tsim: Tuple of (Start, End) time of simulation.
+            dt: Step width of tsim.
 
         Returns:
-            tq -- array timesteps
-            sol -- solver solution for x_dot and z_dot
+            tq: Array of timesteps of tsim.
+            sol: Solver solution.
         """
-
         def dydt(t, z):
             z_dot = torch.matmul(self.D, z)+self.F*self.measurement(t)
             return z_dot
@@ -141,7 +148,7 @@ class LuenebergerObserver():
         tq = torch.arange(tsim[0], tsim[1], dt)
 
         # Intepolation of y
-        self.measurement = self.interpolate_func(y)
+        self.measurement = self.interpolateFunc(y)
 
         # Zero initial value
         z_0 = torch.zeros((self.dim_z,1))
@@ -151,17 +158,18 @@ class LuenebergerObserver():
 
         return tq, sol
 
-    # Vector x = (t_i, x(t_i)) of time steps t_i at which x is known is interpolated at given
-    # time t, interpolating along each output dimension independently if there
-    # are more than one. Returns a function interp(t) which interpolates x at times t
-    def interpolate_func(self, x, method='linear') -> callable:
+    def interpolateFunc(self, x, method='linear') -> callable:
         """Takes a vector of times and values, returns a callable function which
         interpolates the given vector (along each output dimension independently).
-        :param x: vector of (t_i, x(t_i)) to interpolate
-        :type x: torch.tensor
-        :returns: function interp(t, other args) which interpolates x at t
-        :rtype:  Callable[[List[float]], np.ndarray]
+
         Author: Mona Buisson-Fenet 
+
+        Arguments:
+            x: Vector of (t_i, x(t_i)) to interpolate.
+            method: Interpolation method.
+        
+        Returns:
+            Callable[[List[float]], np.ndarray] function.
         """
         if torch.is_tensor(x):  # not building computational graph!
             with torch.no_grad():

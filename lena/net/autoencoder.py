@@ -105,7 +105,9 @@ class Autoencoder(nn.Module):
             z = layer(z)
         return z
 
-    def loss_auto(self, x: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> torch.tensor:
+    def loss_auto(
+            self, x: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
+            torch.tensor, torch.tensor, torch.tensor]:
         """
         Loss function for autonomous experiment.
 
@@ -146,7 +148,8 @@ class Autoencoder(nn.Module):
 
         return loss_1 + loss_2, loss_1, loss_2
 
-    def loss_noise(self, y, y_pred, latent):
+    def loss_noise(self, y: torch.tensor, y_pred: torch.tensor, latent: torch.tensor) -> [
+            torch.tensor, torch.tensor, torch.tensor]:
         """
         # WIP
         Loss function for noise experiment.
@@ -195,7 +198,7 @@ class Autoencoder(nn.Module):
 
         return loss, loss1, loss2
 
-    def forward(self, x: torch.tensor) -> torch.tensor:
+    def forward(self, x: torch.tensor) -> [torch.tensor, torch.tensor]:
         """
         Forward function for autoencoder. Basically 
         z = encoder(x)
