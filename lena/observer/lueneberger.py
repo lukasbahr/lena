@@ -1,10 +1,8 @@
 import numpy as np
 from scipy import linalg
 from torchdiffeq import odeint
-from scipy.interpolate import interp1d
 from torchinterp1d import Interp1d
 import torch
-
 
 class LuenebergerObserver():
     """
@@ -158,7 +156,8 @@ class LuenebergerObserver():
 
         return tq, sol
 
-    def interpolateFunc(self, x, method='linear') -> callable:
+    @staticmethod
+    def interpolateFunc(x, method='linear') -> callable:
         """Takes a vector of times and values, returns a callable function which
         interpolates the given vector (along each output dimension independently).
 
@@ -191,18 +190,5 @@ class LuenebergerObserver():
                             in range(values.shape[1])]
                         interpolate_x = torch.squeeze(torch.stack(res), dim=1).t()
                     return interpolate_x
-        else:
-            points, values = x[:, 0], x[:, 1:]
-            interp_list = [interp1d(x=points, y=values[:, i], kind=method)
-                        for i in range(values.shape[1])]
-            def interp(t):
-                if np.isscalar(t):
-                    t = np.array([t])
-                if len(x) == 1:
-                    # If only one value of x available, assume constant
-                    interpolate_x = np.tile(reshape_pt1(x[0, 1:]), (len(t), 1))
-                else:
-                    interpolate_x = np.array([f(t) for f in interp_list]).T
-                return interpolate_x
         return interp
     

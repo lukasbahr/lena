@@ -25,7 +25,7 @@ def train(data, observer, params):
 
     # Make use of tensorboard
     if params['is_tensorboard']:
-        writer = SummaryWriter()
+        writer = SummaryWriter(params['tensoboard_path'])
 
     # Create trainloader
     trainloader = utils.data.DataLoader(data, batch_size=params['batch_size'],
@@ -53,7 +53,7 @@ def train(data, observer, params):
             if params['experiment'] == 'autonomous':
                 loss, loss1, loss2 = model.loss_auto(x, x_hat, z_hat)
             elif params['experiment'] == 'noise':
-                loss, loss1, loss2 = model.loss_noise(x, x_hat, z)
+                loss, loss1, loss2 = model.loss_noise(x, x_hat, z_hat)
 
             # Write loss to tensorboard
             if params['is_tensorboard']:
@@ -82,8 +82,8 @@ def train(data, observer, params):
         # Adjust learning rate
         scheduler.step()
 
-        # Validate random prediction after each epoch in tensorboard
-        if params['is_tensorboard']:
+        # Validate prediction after every second epoch in tensorboard
+        if params['is_tensorboard'] and epoch % 2 == 0:
 
             # Simulation parameters
             tsim = (0, 100)

@@ -5,7 +5,7 @@ from scipy import signal
 import math
 
 
-def getAutonomousSystem():
+def getRevDuffingSystem():
     # Define plant dynamics
     def f(x): return torch.cat((torch.reshape(torch.pow(x[1, :], 3), (1, -1)), torch.reshape(-x[0, :], (1, -1))), 0)
     def h(x): return torch.reshape(x[0, :], (1, -1))
@@ -24,9 +24,11 @@ def getVanDerPohlSystem():
     eps = 1
     def f(x): return torch.cat((torch.reshape(x[1, :], (1, -1)),
                                 torch.reshape(eps*(1-torch.pow(x[0, :], 2))*x[1, :]-x[0, :], (1, -1))))
+
     def h(x): return torch.reshape(x[0, :], (1, -1))
     def g(x): return torch.cat((torch.reshape(torch.zeros_like(
         x[1, :]), (1, -1)), torch.reshape(torch.ones_like(x[0, :]), (1, -1))))
+
     def u(t): return 10e-3 + 9.99 * 10e-5*t
 
     # System dimension
@@ -35,9 +37,10 @@ def getVanDerPohlSystem():
 
     return f, h, g, u, dim_x, dim_y
 
+
 def createDefaultObserver(params):
-    if params['name'] == 'autonomous':
-        f, h, g, u, dim_x, dim_y = getAutonomousSystem()
+    if params['name'] == 'rev_duffing':
+        f, h, g, u, dim_x, dim_y = getRevDuffingSystem()
     elif params['name'] == 'van_der_pohl':
         f, h, g, u, dim_x, dim_y = getVanDerPohlSystem()
 

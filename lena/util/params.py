@@ -12,6 +12,9 @@ class Params():
         path = Path(args['exp_config']).parent.absolute()
         self.params.update({'path': str(path)})
 
+        if 'tensoboard_path' not in self.params['model']:
+            self.params['model']['tensoboard_path'] = str(path) + '/run'
+
         experiment = self.params['system']['experiment']
         self.params['data']['experiment'] = experiment 
         self.params['model']['experiment'] = experiment

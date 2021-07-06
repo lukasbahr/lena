@@ -56,59 +56,84 @@ def generateTrainingData(observer, params):
         if params['experiment'] == 'autonomous':
 
             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
-            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))),dim=1)
+            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))), dim=1)
 
         elif params['experiment'] == 'noise':
             # Create dataframe
-            data=torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
+            data = torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
 
             for i in range(nsims):
                 # Eigenvalues for D
-                w_c=random.uniform(2.5, 2.5) * math.pi
-                b, a=signal.bessel(3, w_c, 'low', analog=True, norm='phase')
+                w_c = random.uniform(2.0, 2.5) * math.pi
+                b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
 
-                eigen=np.roots(a)
+                eigen = np.roots(a)
 
                 # Place eigenvalue
-                observer.D=observer.tensorDFromEigen(eigen)
+                observer.D = observer.tensorDFromEigen(eigen)
 
                 # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
-                w_0=torch.cat((mesh[i, :], torch.zeros((observer.dim_z))))
-                data[i, :]=torch.cat((torch.tensor([w_c]), w_0))
+                w_0 = torch.cat((mesh[i, :], torch.zeros((observer.dim_z))))
+                data[i, :] = torch.cat((torch.tensor([w_c]), w_0))
 
     return data.float()
 
 
 def processModel(data, observer, model, params):
-    timestr=time.strftime("%Y%m%d-%H%M%S")
+    # Get time string
+    timestr = time.strftime("%Y%m%d-%H%M%S")
 
-    path=params['path'] + '/' + timestr
+    # Set path
+    path = params['path'] + '/' + timestr
 
+    # Save torch model
     torch.save(model.state_dict(), path+"_model.pt")
 
-    mesh=generateMesh(params['validation'])
-    data_val=generateTrainingData(observer, params['validation'])
+    # Generate validation mesh
+    mesh = generateMesh(params['validation'])
+    data_val = generateTrainingData(observer, params['validation'])
 
-    z, x_hat=model(data_val[:, :observer.dim_x+1])
+    # Compute z and x_hat for static test
+    z, x_hat = model(data_val[:, :observer.dim_x+observer.optionalDim])
+    model_estimate = torch.cat((z, x_hat), dim=1)
 
+    # Plot t-SNE of latent space
+    plot.plotTSNE(z.detach().numpy(), True, params['path'])
+
+    # Save data
     np.savetxt(path+"_train_data.csv", data, delimiter=",")
     np.savetxt(path+"_val_data.csv", data_val, delimiter=",")
-    np.savetxt(path+"_x_hat.csv", x_hat.detach().numpy(), delimiter=",")
-    np.savetxt(path+"_z_hat.csv", z.detach().numpy(), delimiter=",")
+    np.savetxt(path+"_model_estimate.csv", model_estimate.detach().numpy(), delimiter=",")
 
-    with open(path+"_observer.pickle", "wb") as f:
-        pickle.dump(observer, f)
+    # TODO: Make inter1pd pickable
+    # with open(path+"_observer.pickle", "wb") as f:
+    # pickle.dump(observer, f)
 
-    plot.plotLogError2D(mesh, x_hat[:, 1:].detach().numpy(), mesh, params)
+    # Plot heatmap
+    plot.plotLogError2D(mesh, x_hat[:, observer.optionalDim:].detach().numpy(), mesh, params)
 
-    indices=torch.randperm(x_hat[:, 1:].shape[0])[:params['validation']['val_size']]
-    y_0_hat=torch.cat((x_hat[indices, 1:], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
-    y_0=torch.cat((data_val[indices, 1:observer.dim_x+1], torch.zeros((indices.shape[0], observer.dim_z))), dim=1).T
+    # Simulation parameters
+    tsim = params['validation']['tsim']
+    dt = params['validation']['dt']
+    x_0 = torch.tensor(params['validation']['val_cond'])
 
-    tq, w_hat=observer.simulateSystem(y_0_hat, (0, 50), params['data']['simulation_step'])
-    tq, w=observer.simulateSystem(y_0, (0, 50), params['data']['simulation_step'])
+    # Get measurements y by simulating from $x$ forward in time
+    w_0 = torch.cat((x_0, torch.zeros((x_0.shape[0], observer.dim_z))), dim=1).T
+    tq_, w_truth = observer.simulateSystem(w_0, tsim, dt)
+    x_truth = w_truth[:, observer.optionalDim:observer.optionalDim+observer.dim_x, :]
 
-    for i in range(len(indices)):
-        plot.plotSimulation2D(tq, w[:, :observer.dim_x, i].detach().numpy(),params,
-                              w_hat[:, :observer.dim_x, i].detach().numpy(), i)
+    for i in range(x_0.shape[0]):
+        # Solve $z_dot$
+        y = torch.cat((tq_.unsqueeze(1), observer.h(x_truth[:, :, i].T).T), dim=1)
+        tq_pred, w_pred = observer.simulateLueneberger(y, tsim, dt)
 
+        # Predict $x_hat$ with $T_star(z)$
+        with torch.no_grad():
+            x_hat = model.decoder(w_pred[:, :, 0].float())
+
+        plot.plotObserverEstimation2D(tq_pred, x_truth[:, :, i], x_hat, True, params['path'])
+
+        sim_data = torch.cat((tq_.unsqueeze(1),  x_truth[:, :, i], x_hat), dim=1)
+        condstr = str(x_truth[0, 0, i]) + "_" + str(x_truth[0, 1, i])
+
+        np.savetxt(path+"_train_data.csv", sim_data, delimiter=",", header="tq,x_1,x_2,x_hat_1,x_hat_2")

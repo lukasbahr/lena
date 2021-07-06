@@ -200,7 +200,7 @@ class Autoencoder(nn.Module):
 
     def forward(self, x: torch.tensor) -> [torch.tensor, torch.tensor]:
         """
-        Forward function for autoencoder. Basically 
+        Forward function for autoencoder.
         z = encoder(x)
         x_hat = decoder(z)
 
