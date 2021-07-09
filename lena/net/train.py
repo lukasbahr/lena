@@ -41,7 +41,6 @@ def train(data, observer, params):
         for i, batch in enumerate(trainloader, 0):
             # Split batch into inputs and labels
             x = batch[:, :dim_x+optionalDim].to(device)
-            z = batch[:, dim_x+optionalDim:].to(device)
 
             # Zero gradients
             optimizer.zero_grad()
@@ -53,7 +52,7 @@ def train(data, observer, params):
             if params['experiment'] == 'autonomous':
                 loss, loss1, loss2 = model.loss_auto(x, x_hat, z_hat)
             elif params['experiment'] == 'noise':
-                loss, loss1, loss2 = model.loss_noise(x, x_hat, z_hat)
+                loss, loss1, loss2, loss3 = model.loss_noise(x, x_hat, z_hat)
 
             # Write loss to tensorboard
             if params['is_tensorboard']:
@@ -89,18 +88,22 @@ def train(data, observer, params):
             tsim = (0, 100)
             dt = 1e-2
 
-            # Get measurements y by simulating from $x$ forward in time
+            # Get measurements fom x forward in time
             w_0_truth = torch.tensor([[1., 2., 0., 0., 0.]]).T
             tq_, w_truth = observer.simulateSystem(w_0_truth, tsim, dt)
 
-            # Solve $z_dot$
+            # Solve z_dot with measurement y
             y = torch.cat((tq_.unsqueeze(1), observer.h(
                 w_truth[:, observer.optionalDim:observer.optionalDim+observer.dim_x, 0].T).T), dim=1)
             tq_pred, w_pred = observer.simulateLueneberger(y, tsim, dt)
+            w_pred = w_pred[:,:,0]
 
-            # Predict $x_hat$ with $T_star(z)$
+            if params['experiment'] == 'noise':
+                w_pred = torch.cat((torch.tensor([2.55]).repeat(w_pred.shape[0],1), w_pred[:,:]),dim=1)
+
+            # Predict x_hat with T_star(z)
             with torch.no_grad():
-                x_hat = model.decoder(w_pred[:, :, 0].float())
+                x_hat = model.decoder(w_pred.float())
 
             # Create fig with 300 dpi
             fig = plt.figure(dpi=200)
@@ -131,7 +134,7 @@ def train(data, observer, params):
 
             # Create ax_z figure
             ax_z = fig.add_subplot(4, 1, 4)
-            ax_z.plot(tq_pred, w_pred[:, :, 0])
+            ax_z.plot(tq_pred, w_pred[:, observer.optionalDim:observer.optionalDim+observer.dim_z])
 
             ax_z.set_ylabel(r'$z_i$')
             ax_z.set_xlabel('time' + r'$[s]$')

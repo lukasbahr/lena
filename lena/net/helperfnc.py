@@ -25,7 +25,7 @@ def generateMesh(params):
         mesh = np.array(np.meshgrid(axes, axes)).T.reshape(-1, 2)
         mesh = torch.tensor(mesh)
     elif params['sampling'] == 'lhs':
-        limits = np.array([params['lhs_limits'], params['lhs_limits']])
+        limits = np.array([params['lhs_limits_state'], params['lhs_limits_state']])
         sampling = LHS(xlimits=limits)
         mesh = torch.tensor(sampling(params['lhs_samples']))
 
@@ -38,43 +38,20 @@ def generateTrainingData(observer, params):
     and after forward in time.
     """
 
-    mesh = generateMesh(params)
-    nsims = mesh.shape[0]
-
-    # Set simulation step width
-    dt = params['simulation_step']
-
-    # Advance k/min(lambda) in time
-    k = 10
-    t_c = k/min(abs(observer.eigenD.real))
-    nsims = mesh.shape[0]
-
-    # Generate either pairs of (x_i, z_i) values by simulating back and then forward in time
-    # or generate trajectories for every initial value (x_1_i, x_2_i, z_0)
     if params['type'] == 'pairs':
 
         if params['experiment'] == 'autonomous':
+            mesh = generateMesh(params)
+            nsims = mesh.shape[0]
 
             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
             data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))), dim=1)
 
         elif params['experiment'] == 'noise':
-            # Create dataframe
-            data = torch.zeros((nsims, observer.dim_x + observer.dim_z + observer.optionalDim))
 
-            for i in range(nsims):
-                # Eigenvalues for D
-                w_c = random.uniform(2.0, 2.5) * math.pi
-                b, a = signal.bessel(3, w_c, 'low', analog=True, norm='phase')
-
-                eigen = np.roots(a)
-
-                # Place eigenvalue
-                observer.D = observer.tensorDFromEigen(eigen)
-
-                # Data contains (x_i, z_i, w_c_i) pairs in shape [1+dim_x+dim_z, number_simulations]
-                w_0 = torch.cat((mesh[i, :], torch.zeros((observer.dim_z))))
-                data[i, :] = torch.cat((torch.tensor([w_c]), w_0))
+            limits = np.array([params['lhs_limits_wc'], params['lhs_limits_state'], params['lhs_limits_state']])
+            sampling = LHS(xlimits=limits)
+            data = torch.tensor(sampling(params['lhs_samples']))
 
     return data.float()
 

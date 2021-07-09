@@ -2,6 +2,7 @@ from lena.observer.lueneberger import LuenebergerObserver
 import torch
 from torch import nn
 from scipy import linalg, signal
+import math
 import numpy as np
 
 
@@ -148,7 +149,7 @@ class Autoencoder(nn.Module):
 
         return loss_1 + loss_2, loss_1, loss_2
 
-    def loss_noise(self, y: torch.tensor, y_pred: torch.tensor, latent: torch.tensor) -> [
+    def loss_noise(self, x: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
             torch.tensor, torch.tensor, torch.tensor]:
         """
         # WIP
@@ -163,18 +164,20 @@ class Autoencoder(nn.Module):
             loss: loss1 + loss2
             loss1: MSE(x,x_hat)
             loss2: MSE(dTdx*f(x),D*z+F*h(x))
+            [optional loss]
+            loss3: MSE(w_c, w_c_hat)
         """
-        w_c = y[:, 0]
+        w_c = x[:, 0]
+        w_c_hat = z_hat[:, 0]
 
-        x = y[:, 1:]
-        z = latent[:, 1:]
+        z = z_hat[:, 1:]
 
         mse = nn.MSELoss()
 
-        loss1 = self.params['recon_lambda'] * mse(y, y_pred)
+        loss1 = self.params['recon_lambda'] * mse(x, x_hat)
 
         # Compute gradients of T_u with respect to inputs
-        dTdy = torch.autograd.functional.jacobian(self.encoder, y)
+        dTdy = torch.autograd.functional.jacobian(self.encoder, x)
         dTdy = dTdy[dTdy != 0].reshape((self.params['batch_size'], self.observer.dim_z+1, self.observer.dim_x+1))
         dTdx = dTdy[:, 1:, 1:]
 
@@ -182,7 +185,7 @@ class Autoencoder(nn.Module):
         rhs = lhs.clone()
 
         for i in range(self.params['batch_size']):
-            b, a = signal.bessel(3, w_c[i], 'low', analog=True, norm='phase')
+            b, a = signal.bessel(3, w_c[i]*2*math.pi, 'low', analog=True, norm='phase')
             eigen = np.roots(a)
 
             # Place eigenvalue
@@ -194,9 +197,11 @@ class Autoencoder(nn.Module):
 
         loss2 = mse(lhs.to(self.device), rhs)
 
-        loss = loss1 + loss2
+        loss3 = mse(w_c, w_c_hat)
 
-        return loss, loss1, loss2
+        loss = loss1 + loss2 + loss3
+
+        return loss, loss1, loss2, loss3
 
     def forward(self, x: torch.tensor) -> [torch.tensor, torch.tensor]:
         """

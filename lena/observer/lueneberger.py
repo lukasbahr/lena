@@ -145,7 +145,7 @@ class LuenebergerObserver():
         # Output timestemps of solver
         tq = torch.arange(tsim[0], tsim[1], dt)
 
-        # Intepolation of y
+        # 1D interpolation of y
         self.measurement = self.interpolateFunc(y)
 
         # Zero initial value
