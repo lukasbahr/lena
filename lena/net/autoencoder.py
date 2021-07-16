@@ -76,7 +76,7 @@ class Autoencoder(nn.Module):
         for i in range(numHL):
             self.decoderLayers.append(self.act)
             self.decoderLayers.append(nn.Linear(sizeHL, sizeHL))
-        self.decoderLayers.append(nn.Linear(sizeHL, dim_x))
+        self.decoderLayers.append(nn.Linear(sizeHL, observer.dim_x))
 
     def encoder(self, x: torch.tensor) -> torch.tensor:
         """
@@ -149,14 +149,14 @@ class Autoencoder(nn.Module):
 
         return loss_1 + loss_2, loss_1, loss_2
 
-    def loss_noise(self, x: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
-            torch.tensor, torch.tensor, torch.tensor]:
+    def loss_noise(self, y: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
+            torch.tensor, torch.tensor]:
         """
         # WIP
         Loss function for noise experiment.
 
         Arguments:
-            x: Input data of shape [input_dim, dim_x+optionalDim].
+            x: Input data of shape [input_dim, optionalDim+dim_x].
             x_hat: Estimated data of shape [input_dim, dim_x+optionalDim].
             z_hat: Estimated data of shape [input_dim, dim_z+optionalDim].
 
@@ -167,7 +167,8 @@ class Autoencoder(nn.Module):
             [optional loss]
             loss3: MSE(w_c, w_c_hat)
         """
-        w_c = x[:, 0]
+        w_c = y[:, 0]
+        x = y[:,1:]
         w_c_hat = z_hat[:, 0]
 
         z = z_hat[:, 1:]
@@ -176,8 +177,9 @@ class Autoencoder(nn.Module):
 
         loss1 = self.params['recon_lambda'] * mse(x, x_hat)
 
+        #TODO Fix this loss pde
         # Compute gradients of T_u with respect to inputs
-        dTdy = torch.autograd.functional.jacobian(self.encoder, x)
+        dTdy = torch.autograd.functional.jacobian(self.encoder, y)
         dTdy = dTdy[dTdy != 0].reshape((self.params['batch_size'], self.observer.dim_z+1, self.observer.dim_x+1))
         dTdx = dTdy[:, 1:, 1:]
 
@@ -195,13 +197,12 @@ class Autoencoder(nn.Module):
             rhs[:, i] = (torch.matmul(D, z[i].T).reshape(-1, 1) + torch.matmul(self.observer.F.to(self.device),
                          self.observer.h(x[i].reshape(-1, 1))).to(self.device)).squeeze()
 
+
         loss2 = mse(lhs.to(self.device), rhs)
 
-        loss3 = mse(w_c, w_c_hat)
+        loss = loss1 + loss2 
 
-        loss = loss1 + loss2 + loss3
-
-        return loss, loss1, loss2, loss3
+        return loss, loss1, loss2
 
     def forward(self, x: torch.tensor) -> [torch.tensor, torch.tensor]:
         """

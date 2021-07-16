@@ -52,7 +52,7 @@ def train(data, observer, params):
             if params['experiment'] == 'autonomous':
                 loss, loss1, loss2 = model.loss_auto(x, x_hat, z_hat)
             elif params['experiment'] == 'noise':
-                loss, loss1, loss2, loss3 = model.loss_noise(x, x_hat, z_hat)
+                loss, loss1, loss2 = model.loss_noise(x, x_hat, z_hat)
 
             # Write loss to tensorboard
             if params['is_tensorboard']:
@@ -77,6 +77,7 @@ def train(data, observer, params):
                 running_loss = 0.00
 
         print('====> Epoch: {} done! LR: {}'.format(epoch + 1, optimizer.param_groups[0]["lr"]))
+        print('x:{}, x_hat:{}'.format(x,x_hat))
 
         # Adjust learning rate
         scheduler.step()
@@ -94,12 +95,12 @@ def train(data, observer, params):
 
             # Solve z_dot with measurement y
             y = torch.cat((tq_.unsqueeze(1), observer.h(
-                w_truth[:, observer.optionalDim:observer.optionalDim+observer.dim_x, 0].T).T), dim=1)
+                w_truth[:, :observer.dim_x, 0].T).T), dim=1)
             tq_pred, w_pred = observer.simulateLueneberger(y, tsim, dt)
             w_pred = w_pred[:,:,0]
 
             if params['experiment'] == 'noise':
-                w_pred = torch.cat((torch.tensor([2.55]).repeat(w_pred.shape[0],1), w_pred[:,:]),dim=1)
+                w_pred = torch.cat((torch.tensor([1.0]).repeat(w_pred.shape[0],1), w_pred[:,:]),dim=1)
 
             # Predict x_hat with T_star(z)
             with torch.no_grad():
