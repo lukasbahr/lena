@@ -53,7 +53,28 @@ def generateTrainingData(observer, params):
             sampling = LHS(xlimits=limits)
             data = torch.tensor(sampling(params['lhs_samples']))
 
-    return data.float()
+        elif params['experiment'] == 'time':
+            mesh = generateMesh(params)
+            nsims = mesh.shape[0]
+            # y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
+            y_0 = torch.tensor([[0.], [0.], [0], [0], [0]])
+
+            # Simulate forward in time
+            tsim = (0, 600)
+            # y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
+            tq, data_fw = observer.simulateSystem(y_0, tsim, params['simulation_step'])
+
+            data = torch.transpose(data_fw, 0, 1).float()
+            data = data[:,:,0].T
+
+            # If system is autonomous we may also want to concatenate the timeframe
+            # Copy tq to match data shape
+            # tq = tq.unsqueeze(1).repeat(1, 1, nsims)
+
+            # Shape [dim_z+1, tsim-initial_data, number_simulations]
+            # data = torch.cat((tq[:,:,0], data[:,:,0])).T
+
+        return data.float()
 
 
 def processModel(data, observer, model, params):

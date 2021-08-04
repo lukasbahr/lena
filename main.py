@@ -5,9 +5,9 @@ import pprint
 from lena.util.configlib import config as args
 import lena.util.configlib as configlib
 from lena.util.params import Params
-from lena.net.train import train
+from lena.net.train import train, train_nn
 from lena.net.helperfnc import generateTrainingData, processModel, generateMesh
-from lena.datasets.exampleSystems import createDefaultObserver
+from lena.datasets.dynamics import createDefaultObserver
 
 # Configuration arguments
 parser = configlib.add_parser("Train config")
@@ -40,6 +40,7 @@ if __name__ == "__main__":
 
         observer = createDefaultObserver(params['system'])
         data = generateTrainingData(observer, params['data'])
+
         model = train(data, observer, params['model'])
 
         if params['write_experiment']:

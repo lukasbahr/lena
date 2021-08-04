@@ -125,7 +125,7 @@ class LuenebergerObserver():
 
         return tq, sol
 
-    def simulateLueneberger(self, y, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
+    def simulateLueneberger(self, y, tsim: tuple, dt, model=None, u_0=0) -> [torch.tensor, torch.tensor]:
         """
         Runs and outputs the results from Luenberger observer system.
 
@@ -139,11 +139,31 @@ class LuenebergerObserver():
             sol: Solver solution.
         """
         def dydt(t, z):
-            z_dot = torch.matmul(self.D, z)+self.F*self.measurement(t)
+            if self.model is None:
+                z_dot = torch.matmul(self.D, z)+self.F*self.measurement(t)
+            else:
+                z_dot = torch.matmul(self.D, z)+self.F*self.measurement(t)+torch.mul(self.phi(z),self.u(t)-self.u_0(t))
             return z_dot
 
         # Output timestemps of solver
         tq = torch.arange(tsim[0], tsim[1], dt)
+
+        # Phi
+        self.model = model
+        if self.model is not None:
+            def phi(z): 
+                dTdy = torch.autograd.functional.jacobian(
+                    model.encoder, self.model.decoder(z.T), create_graph=False, strict=False, vectorize=False)
+
+                dTdx = torch.zeros((self.dim_z, self.dim_x))
+                for j in range(dTdy.shape[1]):
+                    dTdx[j, :] = dTdy[0, j, 0, :]
+
+                affine = self.g(self.model.decoder(z.T).T)
+                return torch.matmul(dTdx, affine)
+
+            self.phi = phi
+            self.u_0 = u_0
 
         # 1D interpolation of y
         self.measurement = self.interpolateFunc(y)

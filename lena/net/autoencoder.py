@@ -6,6 +6,44 @@ import math
 import numpy as np
 
 
+class NN(nn.Module):
+    def __init__(self, observer: LuenebergerObserver, params, device):
+        super().__init__()
+
+        # Set x and z dimension
+        dim_x = observer.dim_x 
+        dim_z = observer.dim_z 
+
+        self.fc1 = nn.Linear(dim_z, 35)
+        self.fc2 = nn.Linear(35, 35)
+        self.fc3 = nn.Linear(35, 35)
+        self.fc4 = nn.Linear(35, 35)
+        self.fc5 = nn.Linear(35, 35)
+        self.fc6 = nn.Linear(35, dim_x)
+        self.tanh = nn.Tanh()
+
+        self.params = params
+        self.device = device
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.tanh(self.fc2(x))
+        x = self.tanh(self.fc3(x))
+        x = self.tanh(self.fc4(x))
+        x = self.tanh(self.fc5(x))
+        x = self.fc6(x)
+        return x
+
+    def loss(self, x, x_hat):
+        # Init mean squared error
+        mse = nn.MSELoss()
+
+        # Reconstruction loss MSE(x,x_hat)
+        loss_1 =  mse(x, x_hat)
+
+        return loss_1
+
+
 class Autoencoder(nn.Module):
     """
     Class for learning a nonlinear transformation function T_star.
@@ -149,6 +187,59 @@ class Autoencoder(nn.Module):
 
         return loss_1 + loss_2, loss_1, loss_2
 
+    def loss_time(
+            self, y: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
+            torch.tensor, torch.tensor, torch.tensor]:
+        """
+        Loss function for autonomous experiment.
+
+        Arguments:
+            x: Input data of shape [input_dim, dim_x+optionalDim].
+            x_hat: Estimated data of shape [input_dim, dim_x+optionalDim].
+            z_hat: Estimated data of shape [input_dim, dim_z+optionalDim].
+
+        Returns:
+            loss: loss1 + loss2
+            loss_1: MSE(x,x_hat)
+            loss_2: MSE(dTdx*f(x),D*z+F*h(x))
+        """
+        # Init mean squared error
+        mse = nn.MSELoss()
+        x = y[:, 1:]
+        z = z_hat[:, 1:]
+
+        # Reconstruction loss MSE(x,x_hat)
+        loss_1 = self.params['recon_lambda'] * mse(x, x_hat)
+
+        dTdh = torch.autograd.functional.jacobian(self.encoder, y)
+
+        dTdy = torch.zeros((self.params['batch_size'], self.observer.dim_z+1, self.observer.dim_x+1))
+
+        # [20, 4, 20, 3] --> [20, 4, 3]
+        for i in range(dTdy.shape[0]):
+            for j in range(dTdy.shape[1]):
+                dTdy[i, j, :] = dTdh[i, j, i, :]
+
+        # dTdx = dTdy[:, :self.observer.dim_z, :self.observer.dim_x]
+        dTdx = dTdy[:, 1:, 1:]
+        dTdt = dTdy[:, 0, :]
+
+        # lhs = dTdx * f(x)
+        lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
+        for i in range(self.params['batch_size']):
+            lhs[:, i] = torch.matmul(dTdx[i], self.observer.f(x.T).T[i]).T + dTdt[i].T
+
+        # rhs = D * z + F * h(x)
+        D = self.observer.D.to(self.device)
+        F = self.observer.F.to(self.device)
+        h_x = self.observer.h(x.T).to(self.device)
+        rhs = torch.matmul(D, z.T) + torch.matmul(F, h_x)
+
+        # PDE loss MSE(lhs, rhs)
+        loss_2 = mse(lhs.to(self.device), rhs)
+
+        return loss_1 + loss_2, loss_1, loss_2
+
     def loss_noise(self, y: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
             torch.tensor, torch.tensor]:
         """
@@ -168,7 +259,7 @@ class Autoencoder(nn.Module):
             loss3: MSE(w_c, w_c_hat)
         """
         w_c = y[:, 0]
-        x = y[:,1:]
+        x = y[:, 1:]
         w_c_hat = z_hat[:, 0]
 
         z = z_hat[:, 1:]
@@ -177,30 +268,36 @@ class Autoencoder(nn.Module):
 
         loss1 = self.params['recon_lambda'] * mse(x, x_hat)
 
-        #TODO Fix this loss pde
+        # TODO Fix this loss pde
         # Compute gradients of T_u with respect to inputs
         dTdy = torch.autograd.functional.jacobian(self.encoder, y)
         dTdy = dTdy[dTdy != 0].reshape((self.params['batch_size'], self.observer.dim_z+1, self.observer.dim_x+1))
+        # dTdx = dTdy[:, :self.observer.dim_z, :self.observer.dim_x]
         dTdx = dTdy[:, 1:, 1:]
 
         lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
         rhs = lhs.clone()
 
         for i in range(self.params['batch_size']):
-            b, a = signal.bessel(3, w_c[i]*2*math.pi, 'low', analog=True, norm='phase')
-            eigen = np.roots(a)
+            # b, a = signal.bessel(3, w_c[i]*2*math.pi, 'low', analog=True, norm='phase')
+            # eigen = np.roots(a)
 
             # Place eigenvalue
-            D = self.observer.tensorDFromEigen(eigen).to(self.device)
+            # D = self.observer.tensorDFromEigen(eigen).to(self.device)
 
             lhs[:, i] = torch.matmul(dTdx[i], self.observer.f(x.T).T[i]).T
-            rhs[:, i] = (torch.matmul(D, z[i].T).reshape(-1, 1) + torch.matmul(self.observer.F.to(self.device),
-                         self.observer.h(x[i].reshape(-1, 1))).to(self.device)).squeeze()
+            # rhs[:, i] = (torch.matmul(D, z[i].T).reshape(-1, 1) + torch.matmul(self.observer.F.to(self.device),
+            #  self.observer.h(x[i].reshape(-1, 1))).to(self.device)).squeeze()
 
+            # rhs = D * z + F * h(x)
+        D = self.observer.D.to(self.device)
+        F = self.observer.F.to(self.device)
+        h_x = self.observer.h(x.T).to(self.device)
+        rhs = torch.matmul(D, z.T) + torch.matmul(F, h_x)
 
         loss2 = mse(lhs.to(self.device), rhs)
 
-        loss = loss1 + loss2 
+        loss = loss1 + loss2
 
         return loss, loss1, loss2
 

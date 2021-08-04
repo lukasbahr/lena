@@ -1,2 +1,2 @@
 --exp_config
-/Users/lukasbahr/lena/experiments/noise/exp1/config.yml
+/Users/lukasbahr/lena_org/experiments/time/reversed_duffing/exp1/config.yml
