@@ -3,6 +3,8 @@ from scipy import linalg
 from torchdiffeq import odeint
 from torchinterp1d import Interp1d
 import torch
+from scipy import signal
+import numpy as np
 
 class LuenebergerObserver():
     """
@@ -43,57 +45,19 @@ class LuenebergerObserver():
     # Noise on observation
     def e(self, t): return 0
 
-    def tensorDFromEigen(self, eigen: torch.tensor) -> torch.tensor:
-        """
-        Return matrix D as conjugate block matrix from eigenvectors 
-        in form of conjugate complex numbers. 
+    def set_D(self, wc=1):
+        b, a = signal.bessel(N=3, Wn=wc*2 * np.pi, analog=True)
+        whole_D = signal.place_poles(
+            A=np.zeros((self.dim_z, self.dim_z)),
+            B=-np.eye(self.dim_z),
+            poles=np.roots(a))
+        self.D = torch.Tensor(whole_D.gain_matrix)
 
-        Arguments:
-            eigen: Dimension of states.
-
-        Returns:
-            D: Conjugate block matrix
-        """
-        self.eigenD = eigen
-        eig_complex, eig_real = [x for x in eigen if x.imag != 0], [
-            x for x in eigen if x.imag == 0]
-
-        if(any(~np.isnan(eig_complex))):
-            eig_complex = sorted(eig_complex)
-            eigenCell = self.eigenCellFromEigen(eig_complex, eig_real)
-            D = linalg.block_diag(*eigenCell[:])
-
-            return torch.from_numpy(D).float()
-
-    @staticmethod
-    def eigenCellFromEigen(eig_complex: torch.tensor, eig_real: torch.tensor) -> []:
-        """
-        Generates a cell array containing 2X2 real
-        matrices for each pair of complex conjugate eigenvalues passed in the
-        arguments, and real scalar for each real eigenvalue.
-
-        Arguments:
-            eigen: Dimension of states.
-
-        Returns:
-            array: Array of conjugate pairs of eigenvectors.
-        """
-        eigenCell = []
-
-        for i in range(0, len(eig_complex), 2):
-            array = np.zeros(shape=(2, 2))
-            array[0, 0] = eig_complex[i].real
-            array[0, 1] = eig_complex[i].imag
-            array[1, 0] = eig_complex[i+1].imag
-            array[1, 1] = eig_complex[i+1].real
-            eigenCell.append(array)
-
-        for i in eig_real:
-            array = np.zeros(shape=(1, 1))
-            array[0, 0] = i.real
-            eigenCell.append(array)
-
-        return eigenCell
+    def set_functions(self,system):
+        self.f = system.f
+        self.g = system.g
+        self.h = system.h
+        self.u = system.u
 
     def simulateSystem(self, y_0: torch.tensor, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
         """

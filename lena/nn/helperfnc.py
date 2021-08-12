@@ -18,63 +18,63 @@ def normalize(self, data):
     return (data-np.min(data))/(np.max(data) - np.min(data))
 
 
-def generateMesh(params):
-    # Sample either a uniformly grid or use latin hypercube sampling
-    if params['sampling'] == 'uniform':
-        axes = np.arange(params['grid_size'][0], params['grid_size'][1], params['grid_step'])
-        mesh = np.array(np.meshgrid(axes, axes)).T.reshape(-1, 2)
-        mesh = torch.tensor(mesh)
-    elif params['sampling'] == 'lhs':
-        limits = np.array([params['lhs_limits_state'], params['lhs_limits_state']])
-        sampling = LHS(xlimits=limits)
-        mesh = torch.tensor(sampling(params['lhs_samples']))
+# def generateMesh(params):
+#     # Sample either a uniformly grid or use latin hypercube sampling
+#     if params['sampling'] == 'uniform':
+#         axes = np.arange(params['grid_size'][0], params['grid_size'][1], params['grid_step'])
+#         mesh = np.array(np.meshgrid(axes, axes)).T.reshape(-1, 2)
+#         mesh = torch.tensor(mesh)
+#     elif params['sampling'] == 'lhs':
+#         limits = np.array([params['lhs_limits_state'], params['lhs_limits_state']])
+#         sampling = LHS(xlimits=limits)
+#         mesh = torch.tensor(sampling(params['lhs_samples']))
 
-    return mesh
+#     return mesh
 
 
-def generateTrainingData(observer, params):
-    """
-    Generate training samples (x,z) by simulating backward in time
-    and after forward in time.
-    """
+# def generateTrainingData(observer, params):
+#     """
+#     Generate training samples (x,z) by simulating backward in time
+#     and after forward in time.
+#     """
 
-    if params['type'] == 'pairs':
+#     if params['type'] == 'pairs':
 
-        if params['experiment'] == 'autonomous':
-            mesh = generateMesh(params)
-            nsims = mesh.shape[0]
+#         if params['experiment'] == 'autonomous':
+#             mesh = generateMesh(params)
+#             nsims = mesh.shape[0]
 
-            # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
-            data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))), dim=1)
+#             # Data contains (x_i, z_i) pairs in shape [dim_z, number_simulations]
+#             data = torch.cat((mesh, torch.zeros((mesh.shape[0], observer.dim_z))), dim=1)
 
-        elif params['experiment'] == 'noise':
+#         elif params['experiment'] == 'noise':
 
-            limits = np.array([params['lhs_limits_wc'], params['lhs_limits_state'], params['lhs_limits_state']])
-            sampling = LHS(xlimits=limits)
-            data = torch.tensor(sampling(params['lhs_samples']))
+#             limits = np.array([params['lhs_limits_wc'], params['lhs_limits_state'], params['lhs_limits_state']])
+#             sampling = LHS(xlimits=limits)
+#             data = torch.tensor(sampling(params['lhs_samples']))
 
-        elif params['experiment'] == 'time':
-            mesh = generateMesh(params)
-            nsims = mesh.shape[0]
-            # y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
-            y_0 = torch.tensor([[0.], [0.], [0], [0], [0]])
+#         elif params['experiment'] == 'time':
+#             mesh = generateMesh(params)
+#             nsims = mesh.shape[0]
+#             # y_0 = torch.zeros((observer.dim_x + observer.dim_z, nsims))
+#             y_0 = torch.tensor([[0.], [0.], [0], [0], [0]])
 
-            # Simulate forward in time
-            tsim = (0, 600)
-            # y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
-            tq, data_fw = observer.simulateSystem(y_0, tsim, params['simulation_step'])
+#             # Simulate forward in time
+#             tsim = (0, 600)
+#             # y_0[:observer.dim_x, :] = torch.transpose(mesh, 0, 1)
+#             tq, data_fw = observer.simulateSystem(y_0, tsim, params['simulation_step'])
 
-            data = torch.transpose(data_fw, 0, 1).float()
-            data = data[:,:,0].T
+#             data = torch.transpose(data_fw, 0, 1).float()
+#             data = data[:,:,0].T
 
-            # If system is autonomous we may also want to concatenate the timeframe
-            # Copy tq to match data shape
-            # tq = tq.unsqueeze(1).repeat(1, 1, nsims)
+#             # If system is autonomous we may also want to concatenate the timeframe
+#             # Copy tq to match data shape
+#             # tq = tq.unsqueeze(1).repeat(1, 1, nsims)
 
-            # Shape [dim_z+1, tsim-initial_data, number_simulations]
-            # data = torch.cat((tq[:,:,0], data[:,:,0])).T
+#             # Shape [dim_z+1, tsim-initial_data, number_simulations]
+#             # data = torch.cat((tq[:,:,0], data[:,:,0])).T
 
-        return data.float()
+#         return data.float()
 
 
 def processModel(data, observer, model, params):

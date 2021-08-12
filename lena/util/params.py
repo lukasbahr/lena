@@ -15,8 +15,7 @@ class Params():
         if 'tensoboard_path' not in self.params['model']:
             self.params['model']['tensoboard_path'] = str(path) + '/run'
 
-        experiment = self.params['system']['experiment']
-        self.params['data']['experiment'] = experiment 
+        experiment = self.params['data']['experiment']
         self.params['model']['experiment'] = experiment
         self.params['validation']['experiment'] = experiment
 

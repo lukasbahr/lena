@@ -13,13 +13,14 @@ class NN(nn.Module):
         # Set x and z dimension
         dim_x = observer.dim_x 
         dim_z = observer.dim_z 
+        dim_in = dim_z + observer.optionalDim
 
-        self.fc1 = nn.Linear(dim_z, 35)
-        self.fc2 = nn.Linear(35, 35)
-        self.fc3 = nn.Linear(35, 35)
-        self.fc4 = nn.Linear(35, 35)
-        self.fc5 = nn.Linear(35, 35)
-        self.fc6 = nn.Linear(35, dim_x)
+        self.fc1 = nn.Linear(dim_in, 40)
+        self.fc2 = nn.Linear(40, 40)
+        self.fc3 = nn.Linear(40, 40)
+        self.fc4 = nn.Linear(40, 40)
+        self.fc5 = nn.Linear(40, 40)
+        self.fc6 = nn.Linear(40, dim_x)
         self.tanh = nn.Tanh()
 
         self.params = params
@@ -88,7 +89,9 @@ class Autoencoder(nn.Module):
 
         # Set x and z dimension
         dim_x = observer.dim_x + observer.optionalDim
-        dim_z = observer.dim_z + observer.optionalDim
+        # dim_z = observer.dim_z + observer.optionalDim
+        dim_z = observer.dim_z
+
 
         # Set model params
         numHL = params['num_hlayers']
@@ -110,11 +113,11 @@ class Autoencoder(nn.Module):
 
         # Define decoder architecture
         self.decoderLayers = nn.ModuleList()
-        self.decoderLayers.append(nn.Linear(dim_z, sizeHL))
+        self.decoderLayers.append(nn.Linear(dim_z+observer.optionalDim, sizeHL))
         for i in range(numHL):
             self.decoderLayers.append(self.act)
             self.decoderLayers.append(nn.Linear(sizeHL, sizeHL))
-        self.decoderLayers.append(nn.Linear(sizeHL, observer.dim_x))
+        self.decoderLayers.append(nn.Linear(sizeHL, dim_x))
 
     def encoder(self, x: torch.tensor) -> torch.tensor:
         """
@@ -209,7 +212,7 @@ class Autoencoder(nn.Module):
         z = z_hat[:, 1:]
 
         # Reconstruction loss MSE(x,x_hat)
-        loss_1 = self.params['recon_lambda'] * mse(x, x_hat)
+        loss_1 = self.params['recon_lambda'] * mse(y, x_hat)
 
         dTdh = torch.autograd.functional.jacobian(self.encoder, y)
 
@@ -221,8 +224,8 @@ class Autoencoder(nn.Module):
                 dTdy[i, j, :] = dTdh[i, j, i, :]
 
         # dTdx = dTdy[:, :self.observer.dim_z, :self.observer.dim_x]
-        dTdx = dTdy[:, 1:, 1:]
-        dTdt = dTdy[:, 0, :]
+        dTdx = dTdy[:, :3, 1:3]
+        dTdt = dTdy[:, :3, 0]
 
         # lhs = dTdx * f(x)
         lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
@@ -240,7 +243,7 @@ class Autoencoder(nn.Module):
 
         return loss_1 + loss_2, loss_1, loss_2
 
-    def loss_noise(self, y: torch.tensor, x_hat: torch.tensor, z_hat: torch.tensor) -> [
+    def loss_noise(self, x: torch.tensor, x_hat: torch.tensor, z: torch.tensor) -> [
             torch.tensor, torch.tensor]:
         """
         # WIP
@@ -258,11 +261,6 @@ class Autoencoder(nn.Module):
             [optional loss]
             loss3: MSE(w_c, w_c_hat)
         """
-        w_c = y[:, 0]
-        x = y[:, 1:]
-        w_c_hat = z_hat[:, 0]
-
-        z = z_hat[:, 1:]
 
         mse = nn.MSELoss()
 
@@ -270,10 +268,10 @@ class Autoencoder(nn.Module):
 
         # TODO Fix this loss pde
         # Compute gradients of T_u with respect to inputs
-        dTdy = torch.autograd.functional.jacobian(self.encoder, y)
-        dTdy = dTdy[dTdy != 0].reshape((self.params['batch_size'], self.observer.dim_z+1, self.observer.dim_x+1))
-        # dTdx = dTdy[:, :self.observer.dim_z, :self.observer.dim_x]
-        dTdx = dTdy[:, 1:, 1:]
+        dTdy = torch.autograd.functional.jacobian(self.encoder, x)
+        dTdy = dTdy[dTdy != 0].reshape((self.params['batch_size'], self.observer.dim_z, self.observer.dim_x+1))
+
+        dTdx = dTdy[:, :, 1:self.observer.dim_x+1]
 
         lhs = torch.zeros((self.observer.dim_z, self.params['batch_size']))
         rhs = lhs.clone()
@@ -301,7 +299,7 @@ class Autoencoder(nn.Module):
 
         return loss, loss1, loss2
 
-    def forward(self, x: torch.tensor) -> [torch.tensor, torch.tensor]:
+    def forward(self, x: torch.tensor, w_c=0) -> [torch.tensor, torch.tensor]:
         """
         Forward function for autoencoder.
         z = encoder(x)
@@ -314,10 +312,22 @@ class Autoencoder(nn.Module):
             z: Latent space data of shape [input_dim, dim_z+optionalDim].
             x_hat: Estimated input data of shape [input_dim, dim_x+optionalDim].
         """
-        # Enocde input space
-        z = self.encoder(x)
+        if self.params['experiment'] == 'noise':
+            # Enocde input space
+            w_c = x[:,0]
 
-        # Decode latent space
-        x_hat = self.decoder(z)
+            z = self.encoder(x)
+
+            z_wc = torch.cat((w_c.unsqueeze(1),z), 1)
+            # Decode latent space
+            x_hat = self.decoder(z_wc)
+
+
+        else:
+            # Enocde input space
+            z = self.encoder(x)
+
+            # Decode latent space
+            x_hat = self.decoder(z)
 
         return z, x_hat

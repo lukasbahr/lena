@@ -1,16 +1,23 @@
-from lena.observer.lueneberger import LuenebergerObserver
-import lena.datasets.controllers as controller
-
-import math
 from scipy import signal
 from smt.sampling_methods import LHS
+from torchdiffeq import odeint
+from math import pi
 import numpy as np
 import torch
-from torchdiffeq import odeint
-
 
 class System():
-    def generate_mesh(self, limits: tuple, num_samples: int, method='lhs'):
+    def __init__(self):
+        self.u = self.null_controller
+
+    def set_controller(self, controller):
+        if controller == 'null_controller':
+            self.u = self.null_controller
+        elif controller == 'sin_controller':
+            self.u = self.sin_controller
+        elif controller == 'lin_chirp_controller':
+            self.u = self.lin_chirp_controller
+
+    def mesh(self, limits: tuple, num_samples: int, method='lhs'):
         # Sample either a uniformly grid or use latin hypercube sampling
         if limits[1] < limits[0]:
             raise ValueError('limits[0] must be strictly smaller than limits[0]')
@@ -26,6 +33,19 @@ class System():
             mesh = sampling(num_samples)
 
         return torch.from_numpy(mesh)
+
+    def mesh_noise(self, limits: tuple, limits_wc: tuple, num_samples: int):
+
+        if limits[1] < limits[0]:
+            raise ValueError('limits[0] must be strictly smaller than limits[0]')
+        if limits_wc[1] < limits_wc[0]:
+            raise ValueError('limits_wc[0] must be strictly smaller than limits_wc[0]')
+
+        limits = np.array([limits_wc, limits, limits])
+        sampling = LHS(xlimits=limits)
+        mesh = torch.Tensor(sampling(num_samples))
+
+        return mesh 
 
     def simulate(self, x_0: torch.tensor, tsim: tuple, dt) -> [torch.tensor, torch.tensor]:
         """
@@ -58,7 +78,7 @@ class System():
         if t == t_0:
             u = 0.
         else:
-            u = torch.sin(2 * math.pi * t * (a + b * t))
+            u = torch.sin(2 * pi * t * (a + b * t))
         return u
 
     def sin_controller(self, t, t0=0, init_control=0, gamma=0.4, omega=1.2):
@@ -78,18 +98,15 @@ class System():
             u = signal.chirp(t, f0=f_0, f1=f_1, t1=t_1, method='linear')
         return torch.tensor(gamma * u)
 
-    def null_controller(self):
+    def null_controller(self, t):
         return 0.
 
 
 class ClassicRevDuffing(System):
 
     def __init__(self):
-        super(ClassicRevDuffing, self).__init__()
         self.dim_x = 2
         self.dim_y = 1
-
-        self.u = self.null_controller
 
     def f(self, x):
         x_0 = torch.reshape(torch.pow(x[1, :], 3), (1, -1))
@@ -106,14 +123,10 @@ class ClassicRevDuffing(System):
 class ClassicVanDerPohl(System):
 
     def __init__(self, eps=1):
-        super(ClassicVanDerPohl, self).__init__()
-
         self.dim_x = 2
         self.dim_y = 1
 
         self.eps = eps
-
-        self.u = self.null_controller
 
     def f(self, x):
         x_0 = torch.reshape(x[1, :], (1, -1))
@@ -127,68 +140,3 @@ class ClassicVanDerPohl(System):
         zeros = torch.reshape(torch.zeros_like(x[1, :]), (1, -1))
         ones = torch.reshape(torch.ones_like(x[0, :]), (1, -1))
         return torch.cat((zeros, ones))
-
-
-def getRevDuffingSystem():
-    # Define plant dynamics
-    def f(x): return torch.cat((torch.reshape(torch.pow(x[1, :], 3), (1, -1)), torch.reshape(-x[0, :], (1, -1))), 0)
-    def h(x): return torch.reshape(x[0, :], (1, -1))
-    def g(x): return torch.zeros(x.shape[0], x.shape[1])
-
-    # System dimension
-    dim_x = 2
-    dim_y = 1
-
-    return f, h, g, dim_x, dim_y
-
-
-def getVanDerPohlSystem():
-    # Define plant dynamics
-    eps = 1
-    def f(x): return torch.cat((torch.reshape(x[1, :], (1, -1)),
-                                torch.reshape(eps*(1-torch.pow(x[0, :], 2))*x[1, :]-x[0, :], (1, -1))))
-
-    def h(x): return torch.reshape(x[0, :], (1, -1))
-    def g(x): return torch.cat((torch.reshape(torch.zeros_like(
-        x[1, :]), (1, -1)), torch.reshape(torch.ones_like(x[0, :]), (1, -1))))
-
-    # System dimension
-    dim_x = 2
-    dim_y = 1
-
-    return f, h, g, dim_x, dim_y
-
-
-def createDefaultObserver(params):
-    if params['name'] == 'rev_duffing':
-        f, h, g, dim_x, dim_y = getRevDuffingSystem()
-    elif params['name'] == 'van_der_pohl':
-        f, h, g, dim_x, dim_y = getVanDerPohlSystem()
-
-    # Initiate observer with system dimensions
-    if params['experiment'] == 'autonomous':
-        observer = LuenebergerObserver(dim_x, dim_y)
-    elif params['experiment'] == 'noise':
-        observer = LuenebergerObserver(dim_x, dim_y, 1)
-    elif params['experiment'] == 'time':
-        observer = LuenebergerObserver(dim_x, dim_y, 0)
-
-    observer.f = f
-    observer.h = h
-    observer.g = g
-    observer.u = controller.sin_controller
-
-    # Eigenvalues for D
-    b, a = signal.bessel(3, 2*math.pi, 'low', analog=True, norm='phase')
-    eigen = np.roots(a)
-
-    # Set system dynamics
-    [b, a] = signal.bessel(N=3, Wn=2 * np.pi, analog=True)
-    whole_D = signal.place_poles(
-        A=np.zeros((3, 3)),
-        B=-np.eye(3),
-        poles=np.roots(a))
-    observer.D = torch.Tensor(whole_D.gain_matrix)
-    observer.F = torch.Tensor([[1.0], [1.0], [1.0]])
-
-    return observer
