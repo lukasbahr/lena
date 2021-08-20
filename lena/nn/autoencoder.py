@@ -6,45 +6,6 @@ import math
 import numpy as np
 
 
-class NN(nn.Module):
-    def __init__(self, observer: LuenebergerObserver, params, device):
-        super().__init__()
-
-        # Set x and z dimension
-        dim_x = observer.dim_x 
-        dim_z = observer.dim_z 
-        dim_in = dim_z + observer.optionalDim
-
-        self.fc1 = nn.Linear(dim_in, 40)
-        self.fc2 = nn.Linear(40, 40)
-        self.fc3 = nn.Linear(40, 40)
-        self.fc4 = nn.Linear(40, 40)
-        self.fc5 = nn.Linear(40, 40)
-        self.fc6 = nn.Linear(40, dim_x)
-        self.tanh = nn.Tanh()
-
-        self.params = params
-        self.device = device
-
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.tanh(self.fc2(x))
-        x = self.tanh(self.fc3(x))
-        x = self.tanh(self.fc4(x))
-        x = self.tanh(self.fc5(x))
-        x = self.fc6(x)
-        return x
-
-    def loss(self, x, x_hat):
-        # Init mean squared error
-        mse = nn.MSELoss()
-
-        # Reconstruction loss MSE(x,x_hat)
-        loss_1 =  mse(x, x_hat)
-
-        return loss_1
-
-
 class Autoencoder(nn.Module):
     """
     Class for learning a nonlinear transformation function T_star.
@@ -331,3 +292,26 @@ class Autoencoder(nn.Module):
             x_hat = self.decoder(z)
 
         return z, x_hat
+
+    def predict(self, params, controller):
+        tsim = params['t_sim']
+        dt = params['dt']
+
+        # Get measurements fom x forward in time
+        init_cond = torch.Tensor(params['init_condition'])
+        w_0_truth = torch.cat((init_cond, torch.tensor([[0., 0., 0.]]).T),0)
+
+        self.observer.u = controller
+        tq_, w_truth = self.observer.simulateSystem(w_0_truth, tsim, dt)
+
+        # Solve z_dot with measurement y
+        y = torch.cat((tq_.unsqueeze(1), self.observer.h(
+            w_truth[:, :self.observer.dim_x, 0].T).T), dim=1)
+        tq_pred, w_pred = self.observer.simulateLueneberger(y, tsim, dt)
+        w_pred = w_pred[:, :, 0]
+
+        # Predict x_hat with T_star(z)
+        with torch.no_grad():
+            x_hat = self.decoder(w_pred.float())
+
+        return x_hat

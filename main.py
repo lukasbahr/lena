@@ -1,4 +1,4 @@
-from lena.experiments.noise import run_noise_exp
+from lena.experiments.noise import run_noise_exp, test_model, wc_plot
 from lena.experiments.autonomous import run_autonomous_exp
 from lena.experiments.non_autonomous import run_non_autonomous_exp
 from lena.util.configlib import config as args
@@ -21,7 +21,9 @@ if __name__ == "__main__":
         params = paramsHandler.params
 
         if params['data']['experiment'] == 'noise':
-            run_noise_exp(params)
+            # run_noise_exp(params)
+            # test_model(params)
+            wc_plot(params)
         elif params['data']['experiment'] == 'autonomous':
             run_autonomous_exp(params)
         elif params['data']['experiment'] == 'non_autonomous':
